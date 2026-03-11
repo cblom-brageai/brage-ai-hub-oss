@@ -1,14 +1,12 @@
-version: '3.9'
-
 services:
   employee-marketing-manager:
     build:
       context: ../apps/employee-agent
     container_name: employee-marketing-manager
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
-      - ./employees/marketing-manager:/app/config
+      - ./employees/marketing-manager/config:/app/config
     environment:
       - EMPLOYEE_ID=marketing-manager
       - CONFIG_DIR=/app/config
@@ -53,6 +51,7 @@ services:
       - "3000:3000"
     environment:
       - CONFIG_API_URL=http://config-api:8090
+      - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
       - EMPLOYEE_ID=marketing-manager
     depends_on:
       - config-api
