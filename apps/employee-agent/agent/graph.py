@@ -1,17 +1,18 @@
 """
 Virtual Employee agent using Deep Agents SDK.
 create_deep_agent() provides planning, file I/O, sub-agents, and memory.
+Skills are loaded natively by the SDK from config/skills/*.md
 Custom tools layered on top: human_gate, communicate, store_result.
 """
 import os
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from agent.config_loader import load_config
 from agent.llm_selector import get_llm
+from deepagents import create_deep_agent
+from deepagents.backends import FilesystemBackend
 
 
 async def build_agent():
-    from deepagents import create_deep_agent
-
     config = load_config()
 
     system_prompt = f"""<identity>
@@ -27,7 +28,7 @@ You are {config.employee_name}, a virtual employee at Brage AI.
 </personality>
 """
 
-    # Build MCP tools from Skills.md [mcp_servers]
+    # Build MCP tools from [mcp_servers] aggregated across all skill files
     mcp_tools = []
     if config.mcp_servers:
         mcp_client = MultiServerMCPClient(
@@ -45,15 +46,17 @@ You are {config.employee_name}, a virtual employee at Brage AI.
 
     custom_tools = [request_human_approval, send_message, store_result]
 
-    fs_backend = os.getenv("FS_BACKEND", "disk")
-    fs_root = os.getenv("FS_ROOT", "/app/config/artefacts")
+    # FilesystemBackend rooted at CONFIG_DIR so skill paths resolve correctly
+    config_dir = os.getenv("CONFIG_DIR", "/app/config")
+    backend = FilesystemBackend(root_dir=config_dir)
 
     agent = create_deep_agent(
         model=get_llm(config.llm_overrides.get("reason")),
         tools=mcp_tools + custom_tools,
         system_prompt=system_prompt,
-        fs_backend=fs_backend,
-        fs_root=fs_root,
+        # Skills loaded natively by Deep Agents SDK from skills/*.md
+        skills=config.skill_paths if config.skill_paths else None,
+        backend=backend,
     )
 
     return agent
