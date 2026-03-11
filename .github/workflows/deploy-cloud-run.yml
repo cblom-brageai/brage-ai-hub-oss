@@ -1,0 +1,91 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: europe-west1
+
+jobs:
+  deploy-employee-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push employee-agent
+        run: |
+          gcloud builds submit apps/employee-agent \
+            --tag gcr.io/$PROJECT_ID/employee-marketing-manager \
+            --project $PROJECT_ID
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy employee-marketing-manager \
+            --image gcr.io/$PROJECT_ID/employee-marketing-manager \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "EMPLOYEE_ID=marketing-manager" \
+            --set-secrets "ANTHROPIC_API_KEY=anthropic-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,LANGCHAIN_API_KEY=langchain-api-key:latest" \
+            --project $PROJECT_ID
+
+  deploy-config-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push config-api
+        run: |
+          gcloud builds submit apps/config-api \
+            --tag gcr.io/$PROJECT_ID/config-api \
+            --project $PROJECT_ID
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy config-api \
+            --image gcr.io/$PROJECT_ID/config-api \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --project $PROJECT_ID
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: [deploy-config-api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push frontend
+        run: |
+          gcloud builds submit apps/frontend \
+            --tag gcr.io/$PROJECT_ID/frontend \
+            --project $PROJECT_ID
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy frontend \
+            --image gcr.io/$PROJECT_ID/frontend \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --project $PROJECT_ID

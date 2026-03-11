@@ -1,0 +1,73 @@
+version: '3.9'
+
+services:
+  employee-marketing-manager:
+    build:
+      context: ../apps/employee-agent
+    container_name: employee-marketing-manager
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./employees/marketing-manager:/app/config
+    environment:
+      - EMPLOYEE_ID=marketing-manager
+      - CONFIG_DIR=/app/config
+      - FS_BACKEND=${FS_BACKEND:-disk}
+      - FS_ROOT=/app/config/artefacts
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+    depends_on:
+      - config-api
+    restart: unless-stopped
+
+  config-api:
+    build:
+      context: ../apps/config-api
+    container_name: config-api
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./employees:/employees
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - CONFIG_ROOT=/employees
+      - GIT_ENABLED=${GIT_ENABLED:-false}
+      - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-config@brageai.no}
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../apps/frontend
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - CONFIG_API_URL=http://config-api:8090
+      - EMPLOYEE_ID=marketing-manager
+    depends_on:
+      - config-api
+      - employee-marketing-manager
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    profiles: ["privacy"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
