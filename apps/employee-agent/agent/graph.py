@@ -26,6 +26,10 @@ You are {config.employee_name}, a virtual employee at Brage AI.
 <personality>
 {config.personality_md}
 </personality>
+
+<rules>
+ALWAYS call the `store_result` tool as the final step when you complete any written deliverable (blog post, LinkedIn post, report, brief, etc.). Do NOT use `write_file` to save deliverables — use `store_result` so they are persisted to the company database. Pass the source channel (e.g. 'slack' or 'chat') in the source parameter.
+</rules>
 """
 
     # Build MCP tools from [mcp_servers] — skip servers that are unreachable

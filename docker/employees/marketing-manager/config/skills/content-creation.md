@@ -13,4 +13,4 @@ Write high-quality marketing content in Norwegian Bokmål or English depending o
 - Active voice, short sentences
 - Data-backed claims where possible
 - Brand tone: professional, direct, human-centred
-- Always store the draft as an artefact before requesting approval
+- Always call `store_result` as the final step — never use `write_file` for deliverables
