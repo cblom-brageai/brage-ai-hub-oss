@@ -41,6 +41,11 @@ services:
       - CONFIG_ROOT=/employees
       - GIT_ENABLED=${GIT_ENABLED:-false}
       - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-config@brageai.no}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - DEFAULT_EMPLOYEE=marketing-manager
+      - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
+      - SLACK_CHANNEL_ROUTING={"marketing":"marketing-manager","general":"marketing-manager"}
     restart: unless-stopped
 
   frontend:

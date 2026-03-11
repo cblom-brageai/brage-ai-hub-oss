@@ -3,7 +3,7 @@
 Machine-readable configuration. Not injected into the system prompt.
 
 [mcp_servers]
-hybrid_router = http://hybrid-router:9000
+# hybrid_router = http://hybrid-router:9000  # enable when hybrid-router service is running
 
 [llm_overrides]
 reason = gemini-3.1-pro-preview

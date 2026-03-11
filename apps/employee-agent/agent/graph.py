@@ -28,16 +28,19 @@ You are {config.employee_name}, a virtual employee at Brage AI.
 </personality>
 """
 
-    # Build MCP tools from [mcp_servers] aggregated across all skill files
+    # Build MCP tools from [mcp_servers] — skip servers that are unreachable
     mcp_tools = []
     if config.mcp_servers:
-        mcp_client = MultiServerMCPClient(
-            {
-                name: {"url": url, "transport": "streamable_http"}
-                for name, url in config.mcp_servers.items()
-            }
-        )
-        mcp_tools = await mcp_client.get_tools()
+        try:
+            mcp_client = MultiServerMCPClient(
+                {
+                    name: {"url": url, "transport": "streamable_http"}
+                    for name, url in config.mcp_servers.items()
+                }
+            )
+            mcp_tools = await mcp_client.get_tools()
+        except Exception as e:
+            print(f"Warning: MCP tool loading failed (some servers may be offline): {e}")
 
     # Brage-specific custom tools
     from agent.tools.human_gate import request_human_approval

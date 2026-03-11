@@ -12,12 +12,21 @@ Layout per employee: /employees/<id>/config/
 import os
 import re
 import subprocess
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-app = FastAPI(title="Brage Config API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from slack_router import start_slack_router
+    start_slack_router()
+    yield
+
+
+app = FastAPI(title="Brage Config API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
