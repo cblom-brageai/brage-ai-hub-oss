@@ -15,7 +15,11 @@ def get_llm(override: str | None = None) -> BaseChatModel:
         base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
         return ChatOllama(model=model, base_url=base_url)
 
-    model_id = override or os.getenv("DEFAULT_LLM", "claude-sonnet-4-6")
+    model_id = override or os.getenv("DEFAULT_LLM", "gemini-3-flash-preview")
+
+    if model_id.startswith("gemini"):
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        return ChatGoogleGenerativeAI(model=model_id, google_api_key=os.getenv("GOOGLE_API_KEY"))
 
     if model_id.startswith("claude"):
         from langchain_anthropic import ChatAnthropic
@@ -28,9 +32,5 @@ def get_llm(override: str | None = None) -> BaseChatModel:
     if model_id.startswith("gpt"):
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(model=model_id, api_key=os.getenv("OPENAI_API_KEY"))
-
-    if model_id.startswith("gemini"):
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(model=model_id, google_api_key=os.getenv("GOOGLE_API_KEY"))
 
     raise ValueError(f"Unknown model: {model_id}")
