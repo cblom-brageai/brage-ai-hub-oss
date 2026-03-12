@@ -52,17 +52,43 @@ Key env vars:
 
 `agent/graph.py` — entry point. `build_agent()` returns a Deep Agents `CompiledGraph`.
 - All LLM calls go through `agent/llm_selector.py::get_llm()` — never instantiate models directly
-- `Skills.md` is NOT injected into the system prompt — only `Strategy.md` + `Personality.md` are
-- `Skills.md` is parsed for `[mcp_servers]`, `[llm_overrides]`, `[human_gate]` config sections
-- MCP tools auto-discovered at startup via `langchain-mcp-adapters`
+- `Strategy.md` + `Personality.md` injected into system prompt; skills loaded natively via Deep Agents SDK `skills=` parameter from `skills/` directory
+- `agent.config.md` holds machine-readable INI config: `[mcp_servers]`, `[llm_overrides]`, `[human_gate]` — never injected into prompt
+- MCP tools auto-discovered at startup via `langchain-mcp-adapters` (non-fatal if server offline)
 - Custom tools in `agent/tools/`: `human_gate`, `communicate`, `store_result`
+- Agent built lazily on first request (~15s cold start); cached for subsequent calls
+- Default LLM: `gemini-3-flash-preview`; reasoning override: `gemini-3.1-pro-preview`
 
 ## Config files (per employee)
 
 Located at `docker/employees/<employee-id>/config/` (bind-mounted to `/app/config` in container):
 - `Strategy.md` — goals, deliverables, decision authority (6+ month horizon)
-- `Skills.md` — competencies + INI-style sections for MCP servers, LLM overrides, human gate
 - `Personality.md` — system prompt personality section
+- `agent.config.md` — `[mcp_servers]`, `[llm_overrides]`, `[human_gate]` config
+- `skills/` — one `.md` file per skill (5–10 per employee), pure capability descriptions
+
+## Slack routing
+
+Single Slack bot routes to employees by channel name. Configured in `apps/config-api/slack_router.py`.
+- Socket Mode (no public URL needed) — uses `SLACK_APP_TOKEN` (`xapp-...`)
+- Channel → employee mapping via `SLACK_CHANNEL_ROUTING` env var (JSON) on config-api
+- `#marketing` → `marketing-manager` is set in `docker-compose.local.yml`
+- Bot must be invited to each channel: `/invite @BotName`
+- Required Slack event subscriptions: `message.channels`, `message.im`
+
+## Supabase
+
+- `artefacts` table: stores all agent-produced documents (blog posts, reports, etc.)
+- Migration: `supabase/migrations/001_artefacts.sql`
+- `store_result` tool writes to Supabase — agent instructed via `<rules>` in system prompt NOT to use `write_file` for deliverables
+
+## Open issues — Employee 1 (Marketing Manager)
+
+- **Human approval gate not tested** — `[human_gate]` config exists in `agent.config.md` but `request_human_approval` tool has not been exercised. Should pause before `publish_external`, `send_email`, `campaign_launch`.
+- **No artefacts viewer in frontend** — artefacts stored in Supabase but no UI to browse/read them.
+- **Agent pre-warming** — first request after container start takes ~15s. Consider pre-building agent on startup rather than lazily.
+- **hybrid-router MCP server not built** — commented out in `agent.config.md`. Needed for RAG/CAG/SQL tools. Build as part of knowledge pipeline phase.
+- **Slack reply formatting** — plain text only. Markdown (bold, bullets) not rendered in Slack; consider using Slack Block Kit for richer output.
 
 ## Deployment
 
