@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { readdir } from 'fs/promises'
 import path from 'path'
 import Link from 'next/link'
@@ -81,10 +83,13 @@ export default async function Home() {
             <FileText size={13} />
             Documents
           </span>
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] opacity-40 cursor-not-allowed select-none">
+          <Link
+            href="/tasks"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
+          >
             <CheckSquare size={13} />
             Tasks
-          </span>
+          </Link>
         </nav>
 
         <ThemeToggle />

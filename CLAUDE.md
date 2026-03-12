@@ -113,6 +113,64 @@ Single Slack bot routes to employees by channel name. Configured in `apps/config
 - **hybrid-router MCP server not built** — commented out in `agent.config.md`. Needed for RAG/CAG/SQL tools. Build as part of knowledge pipeline phase.
 - **Slack reply formatting** — plain text only. Markdown (bold, bullets) not rendered in Slack; consider using Slack Block Kit for richer output.
 
+## Supabase MCP — paused, revisit
+
+Goal: connect Claude Code to Supabase via MCP so migrations can be run directly from the session.
+
+Steps completed:
+- `claude mcp add --transport http supabase https://mcp.supabase.com/mcp` — added to local config
+- Supabase CLI installed via Homebrew
+- `supabase login` run but token not stored (flow didn't complete)
+- Project ref: `onbpmhmmaoyywuqoyjmd`
+
+**To resume:** generate a personal access token at https://supabase.com/dashboard/account/tokens (starts with `sbp_`), then run:
+```bash
+claude mcp add --transport http supabase \
+  'https://mcp.supabase.com/mcp?apikey=<token>&project_ref=onbpmhmmaoyywuqoyjmd'
+```
+
+---
+
+## Frontend backlog
+
+### Feature: Task Management (Kanban) — BUILT, needs env vars + DB migration
+
+Kanban board with columns: `Backlog → In Progress → Awaiting Approval → Done`.
+
+**Design principles:**
+- All task operations go through a `TaskProvider` interface so Jira/MS Planner can be plugged in later
+- Default implementation: Supabase
+
+**Build steps:**
+1. Supabase migration — `tasks` table (id, title, description, status, assigned\_to employee\_id, created\_at, due\_date, linked artefact\_id)
+2. Task interface (`lib/tasks/types.ts`) — `Task`, `TaskStatus`, `TaskProvider` interface
+3. Supabase adapter (`lib/tasks/supabase-adapter.ts`) — implements `TaskProvider`
+4. API routes — `/api/tasks` (CRUD), `/api/tasks/[id]/approve`
+5. Kanban page (`/tasks/page.tsx`) — drag-and-drop columns, assign to employee, delegate button (sends task to employee via chat), approve/close button on "Awaiting Approval" cards
+6. Enable Tasks nav item on home page
+7. **Slack task creation** — extend `apps/config-api/slack_router.py` to detect task-creation intent:
+   - If message is in an employee channel and mentions `@bot` with task-like phrasing → create task in Supabase assigned to that employee, reply with confirmation + task link
+   - If message is in a general/backlog channel (e.g. `#backlog`) → create unassigned task in Backlog column
+   - Use Gemini (`gemini-3-flash-preview`) to classify intent and extract title/description from the message
+
+### Feature: Document Template System — BACKLOG
+
+JSON-schema-driven templates for documents produced by employees.
+
+**Design principles:**
+- Templates stored in Supabase (`templates` table)
+- Selectable when delegating a task; injected into agent system prompt
+- Interface-based so template storage can be swapped
+
+**Build steps:**
+1. Supabase migration — `templates` table (id, name, description, content\_type, schema JSON, category)
+2. Template interface (`lib/templates/types.ts`) — `DocumentTemplate`, `TemplateField`
+3. API routes — `/api/templates` (CRUD)
+4. Templates page (`/templates/page.tsx`) — list, create, edit templates with JSON schema editor
+5. Wire templates into task delegation flow — selected template injected into agent prompt on delegate
+
+---
+
 ## Deployment
 
 - **Local**: `docker-compose.local.yml`. Add `--profile privacy` for Ollama.

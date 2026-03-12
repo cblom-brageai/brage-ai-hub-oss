@@ -111,6 +111,10 @@ services:
       - BID_MANAGER_URL=http://employee-bid-manager:8000
       - PROJECT_MANAGER_URL=http://employee-project-manager:8000
       - SLACK_CHANNEL_ROUTING={"marketing":"marketing-manager","general":"marketing-manager","tenders":"bid-manager","projects":"project-manager"}
+      - SLACK_BACKLOG_CHANNELS=["backlog"]
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     restart: unless-stopped
 
   frontend:
@@ -119,10 +123,15 @@ services:
     container_name: frontend
     ports:
       - "3000:3000"
+    volumes:
+      - ./employees:/employees:ro
     environment:
       - CONFIG_API_URL=http://config-api:8090
+      - EMPLOYEES_DIR=/employees
       - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
       - EMPLOYEE_ID=marketing-manager
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
     depends_on:
       - config-api
       - employee-marketing-manager

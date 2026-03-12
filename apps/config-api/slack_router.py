@@ -21,11 +21,25 @@ from slack_sdk.socket_mode.request import SocketModeRequest
 
 logger = logging.getLogger(__name__)
 
+# Module-level reference to the Slack WebClient so the scheduler can post replies
+_web_client: "WebClient | None" = None
+
+
+def _slack_web_client() -> "WebClient | None":
+    return _web_client
+
+
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN", "")   # xapp-... for Socket Mode
 DEFAULT_EMPLOYEE = os.getenv("DEFAULT_EMPLOYEE", "marketing-manager")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+
+# Channels whose messages always become backlog tasks (no employee routing)
+# Set via SLACK_BACKLOG_CHANNELS env var as JSON array: '["backlog", "tasks"]'
+_backlog_env = os.getenv("SLACK_BACKLOG_CHANNELS", '["backlog"]')
+BACKLOG_CHANNELS: list[str] = json.loads(_backlog_env)
 
 # Channel name or ID → employee_id
 # Override with SLACK_CHANNEL_ROUTING env var as JSON:
@@ -72,6 +86,56 @@ def call_employee(employee_id: str, message: str, timeout: int = 600) -> str:
         return f"_(error reaching {employee_id}: {e})_"
 
 
+# ── Task intent detection ─────────────────────────────────────────────────────
+
+_TASK_CLASSIFY_PROMPT = """You are a classifier. Given a Slack message, decide if it is a request
+to create a task/work item for an AI employee, or a regular conversational message.
+
+A task message typically:
+- Asks someone to do something with a clear deliverable (write, create, prepare, check, analyse, send, schedule, remind)
+- Describes a to-do item or work assignment
+- May include a deadline or recurrence (every Monday, at 9am, weekly, etc.)
+
+A conversational message:
+- Is a question, greeting, quick follow-up, status check, or chitchat
+- Does not describe a discrete piece of work to be completed
+
+Reply with a JSON object only, no markdown:
+{
+  "is_task": true/false,
+  "title": "<short task title, max 80 chars>",
+  "description": "<fuller description extracted from the message, or empty string>",
+  "recurrence": "<cron expression if recurring, e.g. '0 9 * * 1' for weekly Monday 9am, or empty string>",
+  "scheduled_at": "<ISO 8601 datetime if one-off scheduled, or empty string>"
+}"""
+
+
+def _classify_task_intent(message: str) -> dict | None:
+    """
+    Use Gemini Flash to decide if a Slack message is a task creation request.
+    Returns parsed JSON dict, or None on failure.
+    """
+    if not GOOGLE_API_KEY:
+        return None
+    try:
+        import google.generativeai as genai  # type: ignore
+        genai.configure(api_key=GOOGLE_API_KEY)
+        model = genai.GenerativeModel("gemini-3-flash-preview")
+        resp = model.generate_content(
+            f"{_TASK_CLASSIFY_PROMPT}\n\nSlack message:\n{message}"
+        )
+        text = resp.text.strip()
+        # Strip markdown code fences if present
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return json.loads(text)
+    except Exception as e:
+        logger.warning("Task intent classification failed: %s", e)
+        return None
+
+
 # ── Slack event handlers ──────────────────────────────────────────────────────
 
 def _get_channel_name(web: WebClient, channel_id: str) -> str:
@@ -114,8 +178,23 @@ def _extract_file_content(web: WebClient, file_id: str) -> str | None:
         return None
 
 
+def _save_slack_file_attachments(web: WebClient, task_id: str, files: list):
+    """Save Slack file content as task attachments (best-effort)."""
+    if not task_id or not files:
+        return
+    from task_store import add_attachment
+    for f in files:
+        content = _extract_file_content(web, f["id"])
+        if content:
+            name = f.get("name", "attachment")
+            mime = f.get("mimetype", "text/plain")
+            add_attachment(task_id, name, content, mime)
+
+
 def handle_message(web: WebClient, payload: dict):
     event = payload.get("event", {})
+    logger.info("handle_message: type=%s subtype=%s channel=%s",
+                event.get("type"), event.get("subtype"), event.get("channel"))
 
     # Ignore bot messages (including our own replies)
     # Allow "file_share" subtype through so uploaded files are processed
@@ -148,7 +227,67 @@ def handle_message(web: WebClient, payload: dict):
     channel_name = "dm" if channel_type == "im" else _get_channel_name(web, channel_id)
     employee_id = resolve_employee(channel_name, None)
 
-    # Post a "thinking" reaction while processing
+    # Separate text parts from file parts for attachment handling
+    file_parts = event.get("files", [])
+    raw_text = "\n\n".join(parts)
+
+    # ── Task intent: backlog channels always create tasks ─────────────────────
+    if channel_name in BACKLOG_CHANNELS:
+        result = _classify_task_intent(raw_text)
+        if result and result.get("is_task"):
+            from task_store import create_task, add_attachment
+            task = create_task(
+                title=result.get("title") or parts[0][:80],
+                description=result.get("description", ""),
+                created_by="slack",
+                slack_channel=channel_id,
+                slack_ts=thread_ts,
+                recurrence=result.get("recurrence", ""),
+                scheduled_at=result.get("scheduled_at", ""),
+            )
+            task_id = task.get("id", "")
+            _save_slack_file_attachments(web, task_id, file_parts)
+            web.chat_postMessage(
+                channel=channel_id,
+                thread_ts=thread_ts,
+                text=f":white_check_mark: Task added to backlog: *{result.get('title')}*\nID: `{task_id}`",
+            )
+        else:
+            web.chat_postMessage(
+                channel=channel_id,
+                thread_ts=thread_ts,
+                text="_(Could not classify as a task — please phrase it as a work request)_",
+            )
+        return
+
+    # ── Employee channels: classify intent before routing ─────────────────────
+    result = _classify_task_intent(raw_text)
+    if result and result.get("is_task"):
+        from task_store import create_task, add_attachment
+        task = create_task(
+            title=result.get("title") or raw_text[:80],
+            description=result.get("description", ""),
+            assigned_to=employee_id,
+            created_by="slack",
+            slack_channel=channel_id,
+            slack_ts=thread_ts,
+            recurrence=result.get("recurrence", ""),
+            scheduled_at=result.get("scheduled_at", ""),
+        )
+        task_id = task.get("id", "")
+        _save_slack_file_attachments(web, task_id, file_parts)
+        recur_note = f" (recurring: `{result['recurrence']}`)" if result.get("recurrence") else ""
+        web.chat_postMessage(
+            channel=channel_id,
+            thread_ts=thread_ts,
+            text=(
+                f":clipboard: Task created for *{employee_id}*{recur_note}: "
+                f"*{result.get('title')}*\nAdded to backlog — ID: `{task_id}`"
+            ),
+        )
+        return
+
+    # ── Regular message: route to employee agent ──────────────────────────────
     try:
         web.reactions_add(channel=channel_id, name="hourglass_flowing_sand", timestamp=event["ts"])
     except Exception:
@@ -200,11 +339,13 @@ def _make_handler(web: WebClient):
         # Acknowledge immediately
         client.send_socket_mode_response(SocketModeResponse(envelope_id=req.envelope_id))
 
-        if req.type == "events_api":
-            handle_message(web, req.payload)
-
-        elif req.type == "slash_commands":
-            handle_slash_command(web, req.payload)
+        try:
+            if req.type == "events_api":
+                handle_message(web, req.payload)
+            elif req.type == "slash_commands":
+                handle_slash_command(web, req.payload)
+        except Exception:
+            logger.exception("Unhandled error in Slack handler (type=%s)", req.type)
 
     return handler
 
@@ -215,7 +356,9 @@ def start_slack_router():
         logger.warning("Slack tokens not set — Slack router disabled")
         return
 
+    global _web_client
     web = WebClient(token=SLACK_BOT_TOKEN)
+    _web_client = web
     socket_client = SocketModeClient(
         app_token=SLACK_APP_TOKEN,
         web_client=web,

@@ -9,20 +9,27 @@ Layout per employee: /employees/<id>/config/
     campaign-management.md
     ...
 """
+import io
+import logging
 import os
 import re
 import subprocess
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from slack_router import start_slack_router
+    from scheduler import start_scheduler
     start_slack_router()
+    start_scheduler()
     yield
 
 
@@ -150,6 +157,181 @@ def delete_skill(employee_id: str, skill_name: str):
     if not path.exists():
         raise HTTPException(404, "Skill not found")
     path.unlink()
+    return {"deleted": True}
+
+
+# ── Task CRUD ─────────────────────────────────────────────────────────────────
+
+class TaskCreateRequest(BaseModel):
+    title: str
+    description: str = ""
+    assigned_to: str = ""
+    recurrence: str = ""
+    scheduled_at: str = ""
+    created_by: str = "agent"
+
+
+@app.post("/tasks")
+def create_task_endpoint(req: TaskCreateRequest):
+    from task_store import create_task
+    task = create_task(
+        title=req.title,
+        description=req.description,
+        assigned_to=req.assigned_to,
+        created_by=req.created_by,
+        recurrence=req.recurrence,
+        scheduled_at=req.scheduled_at,
+    )
+    if not task:
+        raise HTTPException(500, "Failed to create task")
+    return task
+
+
+# ── Task delegation & completion ─────────────────────────────────────────────
+
+@app.post("/tasks/{task_id}/delegate")
+def delegate_task(task_id: str):
+    from task_store import get_task, update_task
+    task = get_task(task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if not task.get("assigned_to"):
+        raise HTTPException(400, "Task has no assigned employee")
+
+    update_task(task_id, {"status": "in_progress"})
+
+    t = threading.Thread(target=_run_delegated_task, args=(task,), daemon=True)
+    t.start()
+    return {"delegated": True, "task_id": task_id}
+
+
+@app.post("/tasks/{task_id}/complete")
+def complete_task(task_id: str):
+    from task_store import get_task, update_task
+    task = get_task(task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+    _complete_task(task, response="")
+    return {"completed": True, "task_id": task_id}
+
+
+def _run_delegated_task(task: dict):
+    from task_store import get_task_attachments, update_task
+    from slack_router import call_employee
+    task_id = task["id"]
+    employee_id = task["assigned_to"]
+
+    attachments = get_task_attachments(task_id)
+
+    parts = [
+        f"[task_id={task_id}]",
+        f"You have been delegated a task: **{task['title']}**",
+        task.get("description") or "",
+    ]
+    for att in attachments:
+        parts.append(f"\n--- Attachment: {att['filename']} ---\n{att['text_content']}")
+    parts.append(
+        "\nComplete this task according to your system rules:\n"
+        "- If this task asks you to CREATE, SCHEDULE, or BREAK DOWN work into items "
+        "(e.g. populate a backlog, turn a plan into tasks, set up recurring tasks), "
+        "call `create_task` once per item. Do NOT write content, do NOT call `communicate` or `send_message`. "
+        "Use `list_artefacts` / `read_artefact` first if you need a plan or calendar you previously produced. "
+        "When all tasks are created, respond with a plain summary of what you created.\n"
+        "- If this task asks you to PRODUCE, WRITE, or DRAFT actual content (a blog post, "
+        "report, LinkedIn post, etc.), do the work and call `store_result` at the end."
+    )
+
+    message = "\n".join(filter(None, parts))
+
+    try:
+        response = call_employee(employee_id, message)
+        _complete_task(task, response)
+    except Exception as e:
+        logger.error("Delegation failed for task %s: %s", task_id, e)
+        update_task(task_id, {"status": "backlog"})
+
+
+def _complete_task(task: dict, response: str):
+    from task_store import update_task, get_latest_artefact_for_task
+    from slack_router import _slack_web_client
+    task_id = task["id"]
+    employee_id = task.get("assigned_to", "")
+    update_task(task_id, {"status": "awaiting_approval"})
+
+    slack_channel = task.get("slack_channel")
+    slack_ts = task.get("slack_ts")
+    web = _slack_web_client()
+    if not (slack_channel and web):
+        return
+
+    try:
+        # Check if the agent stored a new artefact for this specific task
+        artefact = get_latest_artefact_for_task(task_id, employee_id)
+
+        # Only include artefact content if it was explicitly linked to this task_id
+        # (avoids re-posting stale artefacts from previous runs)
+        artefact_linked = artefact and artefact.get("task_id") == task_id
+
+        if artefact_linked:
+            artefact_title = artefact.get("title", "")
+            content = artefact.get("content", "")
+            body = f"*{artefact_title}*\n\n{content}" if artefact_title else content
+            web.chat_postMessage(
+                channel=slack_channel,
+                thread_ts=slack_ts,
+                text=f":white_check_mark: *{task['title']}* — completed, awaiting approval\n\n{body}",
+            )
+        else:
+            # No linked artefact — post the agent's response text
+            output = response.strip() or "_(task completed)_"
+            web.chat_postMessage(
+                channel=slack_channel,
+                thread_ts=slack_ts,
+                text=f":white_check_mark: *{task['title']}* — completed, awaiting approval\n\n{output}",
+            )
+    except Exception as e:
+        logger.warning("Slack reply failed for task %s: %s", task_id, e)
+
+
+# ── Task attachments ──────────────────────────────────────────────────────────
+
+@app.get("/tasks/{task_id}/attachments")
+def list_attachments(task_id: str):
+    from task_store import get_task_attachments
+    return get_task_attachments(task_id)
+
+
+@app.post("/tasks/{task_id}/attachments")
+async def upload_attachment(task_id: str, file: UploadFile = File(...)):
+    from task_store import add_attachment
+    content = await file.read()
+    filename = file.filename or "attachment"
+    mime = file.content_type or ""
+
+    if "pdf" in mime or filename.lower().endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except Exception as e:
+            raise HTTPException(422, f"PDF extraction failed: {e}")
+        content_type = "application/pdf"
+    elif mime.startswith("text/") or filename.lower().endswith((".txt", ".md")):
+        text = content.decode("utf-8", errors="replace")
+        content_type = "text/plain"
+    else:
+        raise HTTPException(415, "Unsupported file type. Upload PDF or plain text files.")
+
+    att = add_attachment(task_id, filename, text, content_type)
+    return att
+
+
+@app.delete("/tasks/{task_id}/attachments/{attachment_id}")
+def remove_attachment(task_id: str, attachment_id: str):
+    from task_store import delete_attachment
+    ok = delete_attachment(attachment_id)
+    if not ok:
+        raise HTTPException(500, "Failed to delete attachment")
     return {"deleted": True}
 
 
