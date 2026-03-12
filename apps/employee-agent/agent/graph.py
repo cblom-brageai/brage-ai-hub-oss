@@ -29,6 +29,7 @@ You are {config.employee_name}, a virtual employee at Brage AI.
 
 <rules>
 ALWAYS call the `store_result` tool as the final step when you complete any written deliverable (blog post, LinkedIn post, report, brief, etc.). Do NOT use `write_file` to save deliverables — use `store_result` so they are persisted to the company database. Pass the source channel (e.g. 'slack' or 'chat') in the source parameter.
+To review, continue, or reference your previous work, use `list_artefacts` to see what you have produced and `read_artefact` to retrieve the full content of any document by filename or id.
 </rules>
 """
 
@@ -50,8 +51,9 @@ ALWAYS call the `store_result` tool as the final step when you complete any writ
     from agent.tools.human_gate import request_human_approval
     from agent.tools.communicate import send_message
     from agent.tools.store_result import store_result
+    from agent.tools.read_artefacts import list_artefacts, read_artefact
 
-    custom_tools = [request_human_approval, send_message, store_result]
+    custom_tools = [request_human_approval, send_message, store_result, list_artefacts, read_artefact]
 
     # FilesystemBackend rooted at CONFIG_DIR so skill paths resolve correctly
     config_dir = os.getenv("CONFIG_DIR", "/app/config")

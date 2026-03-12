@@ -51,13 +51,24 @@ Key env vars:
 
 ## LLM convention
 
-All employees **must** use Google Gemini via `GOOGLE_API_KEY`. Never configure `agent.config.md` with Anthropic or OpenAI models. Standard overrides:
+> **RULE: Only two Gemini models are permitted across the entire project. Do not substitute any other model.**
+
+| Purpose | Model ID |
+|---------|----------|
+| Default / writing / fast tasks | `gemini-3-flash-preview` |
+| Reasoning / planning / complex tasks | `gemini-3.1-pro-preview` |
+
+All LLM calls **must** go through `agent/llm_selector.py::get_llm()` — never instantiate models directly. All employees use Google Gemini via `GOOGLE_API_KEY`. Never configure `agent.config.md`, frontend API routes, or any other code with Anthropic, OpenAI, or any other model names.
+
+Every `agent.config.md` must contain exactly:
 
 ```ini
 [llm_overrides]
 reason = gemini-3.1-pro-preview
 write = gemini-3-flash-preview
 ```
+
+Frontend API routes (e.g. `apps/frontend/src/app/api/onboard/route.ts`) that call an LLM must use `gemini-3-flash-preview` for standard tasks or `gemini-3.1-pro-preview` for reasoning, via `@google/generative-ai` and `GOOGLE_API_KEY`.
 
 ## Agent architecture
 

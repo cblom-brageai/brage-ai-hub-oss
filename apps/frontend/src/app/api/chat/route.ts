@@ -6,6 +6,8 @@ export const maxDuration = 120
 // Employee agents are addressed by ID — default maps to marketing-manager
 const AGENT_URLS: Record<string, string> = {
   'marketing-manager': process.env.MARKETING_MANAGER_URL || 'http://localhost:8001',
+  'bid-manager':       process.env.BID_MANAGER_URL       || 'http://localhost:8002',
+  'project-manager':   process.env.PROJECT_MANAGER_URL   || 'http://localhost:8003',
 }
 
 function agentUrl(employee_id: string): string {

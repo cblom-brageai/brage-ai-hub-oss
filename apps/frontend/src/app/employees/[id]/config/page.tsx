@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ArrowLeft, Save, RefreshCw, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
@@ -15,8 +16,16 @@ const CORE_TABS: { id: MainTab; label: string; file: string }[] = [
   { id: 'agent-config', label: 'Agent Config',  file: 'agent.config.md' },
 ]
 
-export default function ConfigPage({ params }: { params: { id: string } }) {
-  const [activeTab, setActiveTab] = useState<MainTab>('strategy')
+const VALID_TABS: MainTab[] = ['strategy', 'personality', 'agent-config', 'skills']
+
+function ConfigContent({ params }: { params: { id: string } }) {
+  const searchParams = useSearchParams()
+  const initialTab = (() => {
+    const t = searchParams.get('tab') as MainTab | null
+    return t && VALID_TABS.includes(t) ? t : 'strategy'
+  })()
+
+  const [activeTab, setActiveTab] = useState<MainTab>(initialTab)
   const [coreContents, setCoreContents] = useState<Record<string, string>>({})
   const [skills, setSkills] = useState<{ name: string; last_modified: number }[]>([])
   const [activeSkill, setActiveSkill] = useState<string | null>(null)
@@ -149,16 +158,17 @@ export default function ConfigPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-[rgb(var(--border))] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href={`/employees/${params.id}`} className="p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-colors">
+          <Link href="/" className="p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-colors">
             <ArrowLeft size={16} />
           </Link>
           <span className="font-semibold">Config Editor</span>
+          <span className="text-sm text-[rgb(var(--muted-foreground))]">— {params.id}</span>
         </div>
         <div className="flex items-center gap-3">
           {status && <span className="text-sm text-[rgb(var(--primary))]">{status}</span>}
           <button
             onClick={save}
-            disabled={saving || (isSkillsTab && !activeSkill)}
+            disabled={saving || !isDirty || (isSkillsTab && !activeSkill)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] text-sm hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
             {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
@@ -266,5 +276,13 @@ export default function ConfigPage({ params }: { params: { id: string } }) {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ConfigPage({ params }: { params: { id: string } }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-[rgb(var(--muted-foreground))]">Loading…</div>}>
+      <ConfigContent params={params} />
+    </Suspense>
   )
 }
