@@ -39,10 +39,16 @@ class TaskRequest(BaseModel):
 
 @app.post("/chat/{employee_id}")
 async def chat(employee_id: str, req: ChatRequest):
-    agent = await get_agent()
-    result = await agent.ainvoke({"messages": [{"role": "user", "content": req.message}]})
-    last = result["messages"][-1]
-    return {"response": extract_text(last.content) if hasattr(last, "content") else str(last)}
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        agent = await get_agent()
+        result = await agent.ainvoke({"messages": [{"role": "user", "content": req.message}]})
+        last = result["messages"][-1]
+        return {"response": extract_text(last.content) if hasattr(last, "content") else str(last)}
+    except Exception as e:
+        logger.exception("Agent error for %s", employee_id)
+        return {"response": f"_(agent error: {e})_"}
 
 
 @app.post("/task/{employee_id}")

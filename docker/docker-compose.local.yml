@@ -1,3 +1,5 @@
+name: brage_ai_hub
+
 services:
   employee-marketing-manager:
     build:
@@ -24,6 +26,67 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_DEFAULT_CHANNEL=marketing
+    depends_on:
+      - config-api
+    restart: unless-stopped
+
+  employee-bid-manager:
+    build:
+      context: ../apps/employee-agent
+    container_name: employee-bid-manager
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./employees/bid-manager/config:/app/config
+    environment:
+      - EMPLOYEE_ID=bid-manager
+      - CONFIG_DIR=/app/config
+      - FS_BACKEND=${FS_BACKEND:-disk}
+      - FS_ROOT=/app/config/artefacts
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_DEFAULT_CHANNEL=tenders
+    depends_on:
+      - config-api
+    restart: unless-stopped
+
+  employee-project-manager:
+    build:
+      context: ../apps/employee-agent
+    container_name: employee-project-manager
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./employees/project-manager/config:/app/config
+    environment:
+      - EMPLOYEE_ID=project-manager
+      - CONFIG_DIR=/app/config
+      - FS_BACKEND=${FS_BACKEND:-disk}
+      - FS_ROOT=/app/config/artefacts
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_DEFAULT_CHANNEL=projects
     depends_on:
       - config-api
     restart: unless-stopped
@@ -45,7 +108,9 @@ services:
       - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
       - DEFAULT_EMPLOYEE=marketing-manager
       - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
-      - SLACK_CHANNEL_ROUTING={"marketing":"marketing-manager","general":"marketing-manager"}
+      - BID_MANAGER_URL=http://employee-bid-manager:8000
+      - PROJECT_MANAGER_URL=http://employee-project-manager:8000
+      - SLACK_CHANNEL_ROUTING={"marketing":"marketing-manager","general":"marketing-manager","tenders":"bid-manager","projects":"project-manager"}
     restart: unless-stopped
 
   frontend:

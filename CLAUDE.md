@@ -47,6 +47,17 @@ Key env vars:
 - `PRIVACY_MODE=true` → routes all LLM calls to local Ollama (local mode only)
 - `FS_BACKEND=disk|langgraph_store|memory` → Deep Agents virtual filesystem backend
 - `EMPLOYEE_ID` → identifies which employee container is running (e.g. `marketing-manager`)
+- `GOOGLE_API_KEY` → required. All employees use Google Gemini as the LLM provider.
+
+## LLM convention
+
+All employees **must** use Google Gemini via `GOOGLE_API_KEY`. Never configure `agent.config.md` with Anthropic or OpenAI models. Standard overrides:
+
+```ini
+[llm_overrides]
+reason = gemini-3.1-pro-preview
+write = gemini-3-flash-preview
+```
 
 ## Agent architecture
 
@@ -75,6 +86,7 @@ Single Slack bot routes to employees by channel name. Configured in `apps/config
 - `#marketing` → `marketing-manager` is set in `docker-compose.local.yml`
 - Bot must be invited to each channel: `/invite @BotName`
 - Required Slack event subscriptions: `message.channels`, `message.im`
+- File uploads are handled in `handle_message` — PDFs are downloaded and text-extracted via `pypdf`; plain text files are inlined; other types are referenced by name
 
 ## Supabase
 
@@ -85,7 +97,7 @@ Single Slack bot routes to employees by channel name. Configured in `apps/config
 ## Open issues — Employee 1 (Marketing Manager)
 
 - **Human approval gate not tested** — `[human_gate]` config exists in `agent.config.md` but `request_human_approval` tool has not been exercised. Should pause before `publish_external`, `send_email`, `campaign_launch`.
-- **No artefacts viewer in frontend** — artefacts stored in Supabase but no UI to browse/read them.
+- **No artefacts viewer in frontend** — artefacts stored in Supabase but no UI to browse/read them. To be built as part of the AI Hub frontend.
 - **Agent pre-warming** — first request after container start takes ~15s. Consider pre-building agent on startup rather than lazily.
 - **hybrid-router MCP server not built** — commented out in `agent.config.md`. Needed for RAG/CAG/SQL tools. Build as part of knowledge pipeline phase.
 - **Slack reply formatting** — plain text only. Markdown (bold, bullets) not rendered in Slack; consider using Slack Block Kit for richer output.
@@ -100,7 +112,7 @@ Single Slack bot routes to employees by channel name. Configured in `apps/config
 | Layer | Technology |
 |---|---|
 | Agent runtime | Deep Agents SDK (`deepagents`) on LangGraph ≥ 0.2 |
-| LLM default | Claude Sonnet 4.6 (`claude-sonnet-4-6`) |
+| LLM default | Gemini Flash (`gemini-3-flash-preview`) |
 | LLM privacy | Ollama (local) |
 | Embeddings | Google `text-embedding-004` |
 | Vector DB | Supabase pgvector |

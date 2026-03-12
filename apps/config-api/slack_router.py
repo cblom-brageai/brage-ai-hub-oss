@@ -33,9 +33,10 @@ DEFAULT_EMPLOYEE = os.getenv("DEFAULT_EMPLOYEE", "marketing-manager")
 _routing_env = os.getenv("SLACK_CHANNEL_ROUTING", "{}")
 CHANNEL_ROUTING: dict[str, str] = json.loads(_routing_env)
 
-# Slash command prefix → employee_id  (/mm → marketing-manager)
+# Slash command prefix → employee_id  (/mm → marketing-manager, /bm → bid-manager)
 COMMAND_ROUTING: dict[str, str] = {
     "/mm": "marketing-manager",
+    "/bm": "bid-manager",
 }
 
 # employee_id → internal URL of that employee's chat API
@@ -54,7 +55,7 @@ def resolve_employee(channel_name: str | None, command: str | None) -> str:
     return DEFAULT_EMPLOYEE
 
 
-def call_employee(employee_id: str, message: str, timeout: int = 120) -> str:
+def call_employee(employee_id: str, message: str, timeout: int = 600) -> str:
     url = _employee_url(employee_id)
     try:
         resp = httpx.post(
@@ -81,20 +82,67 @@ def _get_channel_name(web: WebClient, channel_id: str) -> str:
         return channel_id
 
 
+def _extract_file_content(web: WebClient, file_id: str) -> str | None:
+    """Download a Slack file and return its text content."""
+    import io
+    try:
+        file_info = web.files_info(file=file_id)
+        f = file_info["file"]
+        url = f.get("url_private_download") or f.get("url_private")
+        name = f.get("name", "file")
+        mimetype = f.get("mimetype", "")
+        if not url:
+            return f"[File attached: {name}]"
+        resp = httpx.get(
+            url,
+            headers={"Authorization": f"Bearer {SLACK_BOT_TOKEN}"},
+            follow_redirects=True,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        if "pdf" in mimetype:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(resp.content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+            return f"[File: {name}]\n{text}"
+        elif mimetype.startswith("text/"):
+            return f"[File: {name}]\n{resp.text}"
+        else:
+            return f"[File attached: {name} ({mimetype})]"
+    except Exception as e:
+        logger.error("Failed to process Slack file %s: %s", file_id, e)
+        return None
+
+
 def handle_message(web: WebClient, payload: dict):
     event = payload.get("event", {})
 
     # Ignore bot messages (including our own replies)
-    if event.get("bot_id") or event.get("subtype"):
+    # Allow "file_share" subtype through so uploaded files are processed
+    subtype = event.get("subtype")
+    if event.get("bot_id") or (subtype and subtype != "file_share"):
         return
 
     channel_id = event.get("channel", "")
     channel_type = event.get("channel_type", "")
-    text = (event.get("text") or "").strip()
     thread_ts = event.get("thread_ts") or event.get("ts")
 
-    if not text:
+    # Build message from text and any attached files
+    parts = []
+    text = (event.get("text") or "").strip()
+    if text:
+        parts.append(text)
+    for f in event.get("files", []):
+        content = _extract_file_content(web, f["id"])
+        if content:
+            parts.append(content)
+
+    if not parts:
         return
+
+    # Prepend thread context so the agent knows where to post replies
+    context = f"[slack_thread channel_id={channel_id} thread_ts={thread_ts}]"
+    message = context + "\n\n" + "\n\n".join(parts)
 
     # Resolve channel name for routing (DMs use channel_type=im)
     channel_name = "dm" if channel_type == "im" else _get_channel_name(web, channel_id)
@@ -106,7 +154,7 @@ def handle_message(web: WebClient, payload: dict):
     except Exception:
         pass
 
-    response = call_employee(employee_id, text)
+    response = call_employee(employee_id, message)
 
     # Remove thinking reaction and post reply in thread
     try:
