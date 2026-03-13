@@ -129,12 +129,16 @@ services:
       - CONFIG_API_URL=http://config-api:8090
       - EMPLOYEES_DIR=/employees
       - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
+      - BID_MANAGER_URL=http://employee-bid-manager:8000
+      - PROJECT_MANAGER_URL=http://employee-project-manager:8000
       - EMPLOYEE_ID=marketing-manager
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
     depends_on:
       - config-api
       - employee-marketing-manager
+      - employee-bid-manager
+      - employee-project-manager
     restart: unless-stopped
 
   ollama:

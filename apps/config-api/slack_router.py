@@ -61,11 +61,14 @@ def _employee_url(employee_id: str) -> str:
 
 # ── Core routing ──────────────────────────────────────────────────────────────
 
-def resolve_employee(channel_name: str | None, command: str | None) -> str:
+def resolve_employee(channel_name: str | None, command: str | None, channel_id: str | None = None) -> str:
     if command and command in COMMAND_ROUTING:
         return COMMAND_ROUTING[command]
     if channel_name and channel_name in CHANNEL_ROUTING:
         return CHANNEL_ROUTING[channel_name]
+    # Fallback: route by raw channel ID (supports adding IDs to SLACK_CHANNEL_ROUTING)
+    if channel_id and channel_id in CHANNEL_ROUTING:
+        return CHANNEL_ROUTING[channel_id]
     return DEFAULT_EMPLOYEE
 
 
@@ -142,7 +145,8 @@ def _get_channel_name(web: WebClient, channel_id: str) -> str:
     try:
         info = web.conversations_info(channel=channel_id)
         return info["channel"].get("name", channel_id)
-    except Exception:
+    except Exception as e:
+        logger.warning("Could not resolve channel name for %s: %s", channel_id, e)
         return channel_id
 
 
@@ -225,7 +229,7 @@ def handle_message(web: WebClient, payload: dict):
 
     # Resolve channel name for routing (DMs use channel_type=im)
     channel_name = "dm" if channel_type == "im" else _get_channel_name(web, channel_id)
-    employee_id = resolve_employee(channel_name, None)
+    employee_id = resolve_employee(channel_name, None, channel_id=channel_id)
 
     # Separate text parts from file parts for attachment handling
     file_parts = event.get("files", [])

@@ -275,6 +275,13 @@ def _complete_task(task: dict, response: str):
         if artefact_linked:
             artefact_title = artefact.get("title", "")
             content = artefact.get("content", "")
+            # Slack's chat.postMessage has a ~40,000 char limit; large artefacts
+            # (e.g. full tender documents) would cause a silent msg_too_long failure.
+            # Post a preview and let the user view the full artefact in the task manager.
+            MAX_PREVIEW = 2000
+            if len(content) > MAX_PREVIEW:
+                preview = content[:MAX_PREVIEW].rsplit("\n", 1)[0]
+                content = preview + f"\n\n_(preview truncated — full document in task manager)_"
             body = f"*{artefact_title}*\n\n{content}" if artefact_title else content
             web.chat_postMessage(
                 channel=slack_channel,
