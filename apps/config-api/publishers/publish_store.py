@@ -218,7 +218,7 @@ def get_artefact(artefact_id: str) -> dict | None:
 def get_template(template_id: str) -> dict | None:
     try:
         resp = httpx.get(
-            f"{SUPABASE_URL}/rest/v1/templates",
+            f"{SUPABASE_URL}/rest/v1/document_templates",
             headers=_headers(),
             params={"id": f"eq.{template_id}", "select": "*"},
             timeout=10,

@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const supabase = getSupabase()
     const { data, error } = await supabase
-      .from('templates')
+      .from('document_templates')
       .select('*')
       .order('created_at', { ascending: false })
     if (error) throw error
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabase()
     const { data, error } = await supabase
-      .from('templates')
+      .from('document_templates')
       .insert({ name, description, employee_ids: employee_ids ?? [], json_schema: json_schema ?? {} })
       .select()
       .single()

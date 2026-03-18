@@ -1,4 +1,5 @@
-CREATE TABLE IF NOT EXISTS templates (
+-- Use document_templates to avoid conflict with pre-existing 'templates' table
+CREATE TABLE IF NOT EXISTS document_templates (
     id           UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
     name         TEXT        NOT NULL,
     description  TEXT,
@@ -9,9 +10,8 @@ CREATE TABLE IF NOT EXISTS templates (
     updated_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TRIGGER templates_updated_at
-    BEFORE UPDATE ON templates
+CREATE TRIGGER document_templates_updated_at
+    BEFORE UPDATE ON document_templates
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- Disable RLS to match other tables in this project (artefacts, tasks, etc.)
-ALTER TABLE templates DISABLE ROW LEVEL SECURITY;
+ALTER TABLE document_templates DISABLE ROW LEVEL SECURITY;

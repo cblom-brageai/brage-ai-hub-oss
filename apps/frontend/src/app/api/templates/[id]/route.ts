@@ -8,7 +8,7 @@ export async function GET(
   try {
     const supabase = getSupabase()
     const { data, error } = await supabase
-      .from('templates')
+      .from('document_templates')
       .select('*')
       .eq('id', params.id)
       .single()
@@ -34,7 +34,7 @@ export async function PATCH(
 
     const supabase = getSupabase()
     const { data, error } = await supabase
-      .from('templates')
+      .from('document_templates')
       .update(updates)
       .eq('id', params.id)
       .select()
@@ -53,7 +53,7 @@ export async function DELETE(
 ) {
   try {
     const supabase = getSupabase()
-    const { error } = await supabase.from('templates').delete().eq('id', params.id)
+    const { error } = await supabase.from('document_templates').delete().eq('id', params.id)
     if (error) throw error
     return NextResponse.json({ deleted: true })
   } catch (e: unknown) {
