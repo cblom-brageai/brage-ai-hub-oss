@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Users, FileText, CheckSquare, CheckCircle } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { marked } from 'marked'
+import MarkdownIt from 'markdown-it'
+
+const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,7 +57,7 @@ function employeeName(id: string) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { dateStyle: 'medium', timeStyle: 'short' } as Intl.DateTimeFormatOptions)
+  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' } as Intl.DateTimeFormatOptions)
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -271,7 +273,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
             {mode === 'preview' ? (
               <div
                 className="prose prose-sm dark:prose-invert max-w-none rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6"
-                dangerouslySetInnerHTML={{ __html: marked(artefact.content) as string }}
+                dangerouslySetInnerHTML={{ __html: md.render(artefact.content ?? '') }}
               />
             ) : (
               <div className="flex flex-col gap-4">
