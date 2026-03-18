@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Users, FileText, CheckSquare, CheckCircle } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { marked } from 'marked'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -270,11 +269,10 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
           {/* Main content area */}
           <div className="flex-1 min-w-0">
             {mode === 'preview' ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {artefact.content}
-                </ReactMarkdown>
-              </div>
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6"
+                dangerouslySetInnerHTML={{ __html: marked(artefact.content) as string }}
+              />
             ) : (
               <div className="flex flex-col gap-4">
                 <textarea
