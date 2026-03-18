@@ -8,6 +8,7 @@ export interface Task {
   assigned_to?: string    // employee_id
   created_by?: string     // 'slack' | 'web' | 'scheduled'
   artefact_id?: string
+  template_id?: string
   scheduled_at?: string   // ISO datetime — one-off run
   recurrence?: string     // cron expression — recurring run
   next_run_at?: string

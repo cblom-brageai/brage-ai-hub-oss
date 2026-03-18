@@ -195,6 +195,25 @@ def _save_slack_file_attachments(web: WebClient, task_id: str, files: list):
             add_attachment(task_id, name, content, mime)
 
 
+def _handle_approval_via_slack(web: WebClient, channel_id: str, thread_ts: str, text: str):
+    """If this message thread has a matching task, trigger approval and auto-publish."""
+    from task_store import get_task_by_slack_ts
+    try:
+        task = get_task_by_slack_ts(channel_id, thread_ts)
+        if not task or task.get("status") != "awaiting_approval":
+            return
+        config_url = os.getenv("CONFIG_API_URL", "http://localhost:8090")
+        resp = httpx.post(f"{config_url}/tasks/{task['id']}/approve", timeout=30)
+        resp.raise_for_status()
+        web.chat_postMessage(
+            channel=channel_id,
+            thread_ts=thread_ts,
+            text=":white_check_mark: Task approved and marked as done. Publishing if configured…",
+        )
+    except Exception as e:
+        logger.warning("Slack approval handling failed: %s", e)
+
+
 def handle_message(web: WebClient, payload: dict):
     event = payload.get("event", {})
     logger.info("handle_message: type=%s subtype=%s channel=%s",
@@ -209,6 +228,12 @@ def handle_message(web: WebClient, payload: dict):
     channel_id = event.get("channel", "")
     channel_type = event.get("channel_type", "")
     thread_ts = event.get("thread_ts") or event.get("ts")
+
+    # Check if this is an approval message in a task thread
+    raw_text_check = (event.get("text") or "").strip().lower()
+    if thread_ts and any(word in raw_text_check for word in ["approved", "approve", "✅"]):
+        _handle_approval_via_slack(web, channel_id, thread_ts, raw_text_check)
+        return
 
     # Build message from text and any attached files
     parts = []

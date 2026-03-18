@@ -165,6 +165,11 @@ function TaskCard({
   )
 }
 
+interface TemplateOption {
+  id: string
+  name: string
+}
+
 // ── Shared task form fields ───────────────────────────────────────────────────
 
 function TaskForm({
@@ -177,6 +182,8 @@ function TaskForm({
   customCron, setCustomCron,
   employees,
   statusField,
+  templateId, setTemplateId,
+  templates,
 }: {
   title: string; setTitle: (v: string) => void
   description: string; setDescription: (v: string) => void
@@ -187,6 +194,8 @@ function TaskForm({
   customCron: string; setCustomCron: (v: string) => void
   employees: { id: string; name: string }[]
   statusField?: React.ReactNode
+  templateId?: string; setTemplateId?: (v: string) => void
+  templates?: TemplateOption[]
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -229,6 +238,24 @@ function TaskForm({
       </div>
 
       {statusField}
+
+      {setTemplateId !== undefined && (
+        <div>
+          <label className="text-xs font-medium text-[rgb(var(--muted-foreground))] mb-1 block">
+            Document Template (optional)
+          </label>
+          <select
+            value={templateId ?? ''}
+            onChange={(e) => setTemplateId(e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--muted))] focus:outline-none focus:border-[rgb(var(--primary))] transition-colors"
+          >
+            <option value="">No template</option>
+            {(templates ?? []).map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label className="text-xs font-medium text-[rgb(var(--muted-foreground))] mb-1 block">Schedule</label>
@@ -369,11 +396,13 @@ function AttachmentsPanel({ taskId }: { taskId: string }) {
 function EditTaskModal({
   task,
   employees,
+  templates,
   onClose,
   onSave,
 }: {
   task: Task
   employees: { id: string; name: string }[]
+  templates: TemplateOption[]
   onClose: () => void
   onSave: (id: string, updates: Partial<Task>) => void
 }) {
@@ -385,6 +414,7 @@ function EditTaskModal({
   const [description, setDescription] = useState(task.description ?? '')
   const [assignedTo, setAssignedTo] = useState(task.assigned_to ?? '')
   const [status, setStatus] = useState<TaskStatus>(task.status)
+  const [templateId, setTemplateId] = useState(task.template_id ?? '')
   const [scheduleType, setScheduleType] = useState<'none' | 'once' | 'recurring'>(
     task.recurrence ? 'recurring' : task.scheduled_at ? 'once' : 'none'
   )
@@ -408,6 +438,7 @@ function EditTaskModal({
       description: description.trim() || undefined,
       assigned_to: assignedTo || undefined,
       status,
+      template_id: templateId || undefined,
       scheduled_at: scheduleType === 'once' ? scheduledAt || undefined : undefined,
       recurrence: recurrence || undefined,
     })
@@ -434,6 +465,8 @@ function EditTaskModal({
             recurrencePreset={recurrencePreset} setRecurrencePreset={setRecurrencePreset}
             customCron={customCron} setCustomCron={setCustomCron}
             employees={employees}
+            templateId={templateId} setTemplateId={setTemplateId}
+            templates={templates}
             statusField={
               <div>
                 <label className="text-xs font-medium text-[rgb(var(--muted-foreground))] mb-1 block">Status</label>
@@ -479,16 +512,19 @@ function EditTaskModal({
 
 function CreateTaskModal({
   employees,
+  templates,
   onClose,
   onCreate,
 }: {
   employees: { id: string; name: string }[]
+  templates: TemplateOption[]
   onClose: () => void
   onCreate: (task: Partial<Task>) => void
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
+  const [templateId, setTemplateId] = useState('')
   const [scheduleType, setScheduleType] = useState<'none' | 'once' | 'recurring'>('none')
   const [scheduledAt, setScheduledAt] = useState('')
   const [recurrencePreset, setRecurrencePreset] = useState(RECURRENCE_PRESETS[0].value)
@@ -505,6 +541,7 @@ function CreateTaskModal({
       title: title.trim(),
       description: description.trim() || undefined,
       assigned_to: assignedTo || undefined,
+      template_id: templateId || undefined,
       scheduled_at: scheduleType === 'once' ? scheduledAt || undefined : undefined,
       recurrence: recurrence || undefined,
     })
@@ -530,6 +567,8 @@ function CreateTaskModal({
             recurrencePreset={recurrencePreset} setRecurrencePreset={setRecurrencePreset}
             customCron={customCron} setCustomCron={setCustomCron}
             employees={employees}
+            templateId={templateId} setTemplateId={setTemplateId}
+            templates={templates}
           />
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
@@ -555,6 +594,7 @@ export default function TasksPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([])
+  const [templates, setTemplates] = useState<TemplateOption[]>([])
   const [dragging, setDragging] = useState<Task | null>(null)
   const [dragOver, setDragOver] = useState<TaskStatus | null>(null)
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({})
@@ -562,6 +602,7 @@ export default function TasksPage() {
   useEffect(() => {
     loadTasks()
     loadEmployees()
+    loadTemplates()
   }, [])
 
   // Auto-poll every 8s while any task is in_progress (to catch completion)
@@ -596,10 +637,18 @@ export default function TasksPage() {
     const res = await fetch('/api/employees')
     if (res.ok) {
       const data = await res.json()
-      setEmployees(data.map((e: any) => ({
+      setEmployees(data.map((e: { id: string }) => ({
         id: e.id,
         name: e.id.split('-').map((w: string) => w[0].toUpperCase() + w.slice(1)).join(' '),
       })))
+    }
+  }
+
+  async function loadTemplates() {
+    const res = await fetch('/api/templates')
+    if (res.ok) {
+      const data = await res.json()
+      setTemplates(data.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })))
     }
   }
 
@@ -712,10 +761,13 @@ export default function TasksPage() {
             <Users size={13} />
             Employees
           </Link>
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] opacity-40 cursor-not-allowed select-none">
+          <Link
+            href="/documents"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
+          >
             <FileText size={13} />
             Documents
-          </span>
+          </Link>
           <Link
             href="/tasks"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-[rgb(var(--muted))] text-[rgb(var(--foreground))]"
@@ -827,6 +879,7 @@ export default function TasksPage() {
       {showCreate && (
         <CreateTaskModal
           employees={employees}
+          templates={templates}
           onClose={() => setShowCreate(false)}
           onCreate={createTask}
         />
@@ -836,6 +889,7 @@ export default function TasksPage() {
         <EditTaskModal
           task={editingTask}
           employees={employees}
+          templates={templates}
           onClose={() => setEditingTask(null)}
           onSave={(id, updates) => updateTask(id, updates)}
         />

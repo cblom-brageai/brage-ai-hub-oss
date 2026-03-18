@@ -65,10 +65,14 @@ def _run_task(task: dict):
         web = _slack_web_client()
         if slack_channel and web:
             try:
+                MAX_PREVIEW = 2000
+                output = response.strip() or "_(task completed)_"
+                if len(output) > MAX_PREVIEW:
+                    output = output[:MAX_PREVIEW].rsplit("\n", 1)[0] + "\n\n_(preview truncated — full output in task manager)_"
                 web.chat_postMessage(
                     channel=slack_channel,
                     thread_ts=slack_ts,
-                    text=f"Task completed: *{title}*\n{response}",
+                    text=f"Task completed: *{title}*\n{output}",
                 )
             except Exception as e:
                 logger.warning("Could not post Slack reply for task %s: %s", task_id, e)

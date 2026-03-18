@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from langchain_core.tools import tool
@@ -17,13 +18,15 @@ def _content_type(filename: str) -> str:
 
 
 @tool
-async def store_result(filename: str, content: str, task_id: str = "", source: str = "") -> str:
+async def store_result(filename: str, content: str, task_id: str = "", source: str = "", metadata: str = "", template_id: str = "") -> str:
     """
-    Persist a completed artefact (document, report, post) to Supabase.
+    Persist a completed artefact to Supabase.
     filename: intended filename including extension (e.g. 'campaign_brief_2025.md')
-    content: full content of the artefact
+    content: full markdown body of the artefact
     task_id: optional task identifier for audit trail
     source: origin channel — 'slack', 'chat', 'scheduled', etc.
+    metadata: optional JSON string with structured metadata, e.g. {"tags":["Q1"],"summary":"...","sources":[]}
+    template_id: optional UUID of the template used to produce this artefact
     """
     from supabase import create_client
 
@@ -36,6 +39,13 @@ async def store_result(filename: str, content: str, task_id: str = "", source: s
 
     client = create_client(url, key)
 
+    parsed_metadata = None
+    if metadata:
+        try:
+            parsed_metadata = json.loads(metadata)
+        except Exception:
+            parsed_metadata = {"raw": metadata}
+
     row = {
         "employee_id": employee_id,
         "filename":    filename,
@@ -44,7 +54,14 @@ async def store_result(filename: str, content: str, task_id: str = "", source: s
         "content_type": _content_type(filename),
         "task_id":     task_id or None,
         "source":      source or None,
+        "schema_version": "1.0",
     }
+
+    if parsed_metadata is not None:
+        row["metadata"] = parsed_metadata
+
+    if template_id:
+        row["template_id"] = template_id
 
     result = client.table("artefacts").insert(row).execute()
 

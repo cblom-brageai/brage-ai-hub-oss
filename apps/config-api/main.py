@@ -169,6 +169,25 @@ class TaskCreateRequest(BaseModel):
     recurrence: str = ""
     scheduled_at: str = ""
     created_by: str = "agent"
+    template_id: str = ""
+
+
+class PublishChannelRequest(BaseModel):
+    name: str = ""
+    type: str = ""
+    config: dict = {}
+    available_to: list = []
+
+
+class PublishRuleRequest(BaseModel):
+    employee_id: str
+    channel_id: str
+    trigger: str = "approved"
+
+
+class PublishRequest(BaseModel):
+    artefact_id: str
+    channel_id: str
 
 
 @app.post("/tasks")
@@ -241,6 +260,20 @@ def _run_delegated_task(task: dict):
         "report, LinkedIn post, etc.), do the work and call `store_result` at the end."
     )
 
+    # Inject template schema into agent prompt if task has a template_id
+    template_id = task.get("template_id")
+    if template_id:
+        from publishers.publish_store import get_template
+        tmpl = get_template(template_id)
+        if tmpl:
+            import json as _json
+            parts.append(
+                f"\n**Document Template:** Use the following JSON Schema as the structure for your output document.\n"
+                f"Template: {tmpl['name']}\n"
+                f"Schema: {_json.dumps(tmpl['json_schema'], indent=2)}\n"
+                f"When calling store_result, pass template_id='{template_id}' and a metadata JSON string matching the schema fields."
+            )
+
     message = "\n".join(filter(None, parts))
 
     try:
@@ -291,6 +324,9 @@ def _complete_task(task: dict, response: str):
         else:
             # No linked artefact — post the agent's response text
             output = response.strip() or "_(task completed)_"
+            MAX_PREVIEW = 2000
+            if len(output) > MAX_PREVIEW:
+                output = output[:MAX_PREVIEW].rsplit("\n", 1)[0] + "\n\n_(preview truncated — full output in task manager)_"
             web.chat_postMessage(
                 channel=slack_channel,
                 thread_ts=slack_ts,
@@ -340,6 +376,123 @@ def remove_attachment(task_id: str, attachment_id: str):
     if not ok:
         raise HTTPException(500, "Failed to delete attachment")
     return {"deleted": True}
+
+
+# ── Publish channels ──────────────────────────────────────────────────────────
+
+@app.get("/publish/channels")
+def list_publish_channels():
+    from publishers.publish_store import get_channels
+    return get_channels()
+
+
+@app.post("/publish/channels")
+def create_publish_channel(req: PublishChannelRequest):
+    from publishers.publish_store import create_channel
+    result = create_channel({"name": req.name, "type": req.type, "config": req.config, "available_to": req.available_to})
+    if not result:
+        raise HTTPException(500, "Failed to create channel")
+    return result
+
+
+@app.patch("/publish/channels/{channel_id}")
+def update_publish_channel(channel_id: str, req: PublishChannelRequest):
+    from publishers.publish_store import update_channel
+    updates = {}
+    if req.name: updates["name"] = req.name
+    if req.type: updates["type"] = req.type
+    if req.config: updates["config"] = req.config
+    if req.available_to is not None: updates["available_to"] = req.available_to
+    result = update_channel(channel_id, updates)
+    if not result:
+        raise HTTPException(500, "Failed to update channel")
+    return result
+
+
+@app.delete("/publish/channels/{channel_id}")
+def delete_publish_channel(channel_id: str):
+    from publishers.publish_store import delete_channel
+    ok = delete_channel(channel_id)
+    if not ok:
+        raise HTTPException(500, "Failed to delete channel")
+    return {"deleted": True}
+
+
+# ── Publish rules ─────────────────────────────────────────────────────────────
+
+@app.get("/publish/rules")
+def list_publish_rules(employee_id: str = ""):
+    from publishers.publish_store import get_rules
+    return get_rules(employee_id)
+
+
+@app.post("/publish/rules")
+def create_publish_rule(req: PublishRuleRequest):
+    from publishers.publish_store import create_rule
+    result = create_rule({"employee_id": req.employee_id, "channel_id": req.channel_id, "trigger": req.trigger})
+    if not result:
+        raise HTTPException(500, "Failed to create rule")
+    return result
+
+
+@app.delete("/publish/rules/{rule_id}")
+def delete_publish_rule(rule_id: str):
+    from publishers.publish_store import delete_rule
+    ok = delete_rule(rule_id)
+    if not ok:
+        raise HTTPException(500, "Failed to delete rule")
+    return {"deleted": True}
+
+
+# ── Publish dispatch ──────────────────────────────────────────────────────────
+
+@app.post("/publish")
+def trigger_publish(req: PublishRequest):
+    from publishers.dispatcher import dispatch_publish
+    try:
+        return dispatch_publish(req.artefact_id, req.channel_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/publish/logs")
+def get_publish_logs(artefact_id: str = ""):
+    from publishers.publish_store import get_logs
+    return get_logs(artefact_id)
+
+
+# ── Task approval with auto-publish ───────────────────────────────────────────
+
+@app.post("/tasks/{task_id}/approve")
+def approve_task_and_publish(task_id: str):
+    """
+    Mark task as done and trigger auto-publish for any 'approved' rules
+    matching the task's employee.
+    """
+    from task_store import get_task, update_task
+    from publishers.publish_store import get_rules
+    from publishers.dispatcher import dispatch_publish
+
+    task = get_task(task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+    update_task(task_id, {"status": "done"})
+
+    artefact_id = task.get("artefact_id")
+    employee_id = task.get("assigned_to", "")
+
+    if artefact_id and employee_id:
+        rules = get_rules(employee_id)
+        for rule in rules:
+            if rule.get("trigger") == "approved":
+                try:
+                    dispatch_publish(artefact_id, rule["channel_id"])
+                except Exception as e:
+                    logger.warning("Auto-publish failed for rule %s: %s", rule["id"], e)
+
+    return {"approved": True, "task_id": task_id}
 
 
 # ── Reload & health ───────────────────────────────────────────────────────────

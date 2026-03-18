@@ -79,10 +79,13 @@ export default async function Home() {
             <Users size={13} />
             Employees
           </Link>
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] opacity-40 cursor-not-allowed select-none">
+          <Link
+            href="/documents"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
+          >
             <FileText size={13} />
             Documents
-          </span>
+          </Link>
           <Link
             href="/tasks"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"

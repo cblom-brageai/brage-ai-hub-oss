@@ -202,6 +202,22 @@ def get_latest_artefact_for_task(task_id: str, employee_id: str) -> dict | None:
         return None
 
 
+def get_task_by_slack_ts(slack_channel: str, slack_ts: str) -> dict | None:
+    try:
+        resp = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/tasks",
+            headers=_headers(),
+            params={"slack_channel": f"eq.{slack_channel}", "slack_ts": f"eq.{slack_ts}", "select": "*", "limit": "1"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        rows = resp.json()
+        return rows[0] if rows else None
+    except Exception as e:
+        logger.error("Failed to get task by slack_ts: %s", e)
+        return None
+
+
 def update_task(task_id: str, updates: dict) -> dict:
     try:
         resp = httpx.patch(
