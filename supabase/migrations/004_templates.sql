@@ -12,3 +12,6 @@ CREATE TABLE IF NOT EXISTS templates (
 CREATE TRIGGER templates_updated_at
     BEFORE UPDATE ON templates
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Disable RLS to match other tables in this project (artefacts, tasks, etc.)
+ALTER TABLE templates DISABLE ROW LEVEL SECURITY;
