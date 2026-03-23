@@ -4,16 +4,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-Turborepo monorepo with three services:
+Turborepo monorepo with services:
 
 - `apps/employee-agent` — Python. Virtual employee runtime using Deep Agents SDK on LangGraph. Exposes a FastAPI/MCP server. Config-driven via mounted `.md` files.
 - `apps/config-api` — Python FastAPI. Serves/saves employee config files (`Strategy.md`, `Skills.md`, `Personality.md`). Sends SIGHUP to employee containers for live reload.
 - `apps/frontend` — Next.js 14 (App Router). Chat UI + config editor. Dark teal theme, dark/light toggle.
+- `apps/meeting-agent` — Python FastAPI. Orchestrates meeting agents (decision logger, Q&A, meetings monitor). Ingests Soniox transcription utterances and fans out to all active meeting agents.
+- `apps/chrome-extension` — Manifest V3 Chrome extension. Side panel for browser-based meetings. Captures tab audio → streams to Soniox WebSocket → posts utterances to meeting-agent. Subscribes to Supabase Realtime for agent output.
+
+## Branching
+
+| Branch | Frontend port | Docker Compose | Purpose |
+|--------|--------------|---------------|---------|
+| `main` | 3000 | `docker-compose.local.yml` | Stable production-ready |
+| `dev`  | 3001 | `docker-compose.dev.yml`  | Meeting app development |
+
+Both stacks can run simultaneously. Main and dev use separate Docker networks (`bridge` default vs `brage-dev`).
 
 ## Key commands
 
 ```bash
-# Frontend dev
+# Frontend dev (dev branch — port 3001)
+cd apps/frontend && pnpm install && pnpm dev
+
+# Meeting agent dev
+cd apps/meeting-agent && pip install -r requirements.txt
+uvicorn mcp_server.server:app --reload --port 8010
+
+# Docker dev stack (port 3001)
+cd docker && make dev-up
+
+# Docker main stack (port 3000)
+cd docker && make up
+
+# Frontend dev (main branch — port 3000, override)
 cd apps/frontend && pnpm install && pnpm dev
 
 # Python dev (employee-agent)
@@ -104,6 +128,34 @@ Single Slack bot routes to employees by channel name. Configured in `apps/config
 - `artefacts` table: stores all agent-produced documents (blog posts, reports, etc.)
 - Migration: `supabase/migrations/001_artefacts.sql`
 - `store_result` tool writes to Supabase — agent instructed via `<rules>` in system prompt NOT to use `write_file` for deliverables
+- Meeting tables (migration `007_meetings`): `meetings`, `meeting_participants`, `meeting_transcriptions`, `meeting_decisions`, `meeting_qa_pairs`, `meeting_agenda_status`, `meeting_mom`
+- Supabase Realtime enabled on meeting tables — Chrome extension subscribes directly for agent output
+
+## Meeting App (dev branch)
+
+### Soniox integration
+- WebSocket endpoint: `wss://stt-rt.soniox.com/transcribe-websocket`
+- Auth: API key in initial JSON config message (org-level key stored as `SONIOX_API_KEY`)
+- Model: `stt-rt-v4`, speaker diarization enabled, language identification enabled
+- The Chrome extension owns the Soniox connection — it captures tab audio via `chrome.tabCapture`, streams binary audio frames to Soniox, accumulates tokens until `is_final=true`, then POSTs completed utterances to `/api/meetings/[id]/utterance`
+- Works with any browser-based meeting (Teams, Google Meet, Zoom Web, etc.) — platform-agnostic
+
+### Meeting agent config
+Located at `docker/meetings/agents/<agent-id>/config/`:
+- `Personality.md` — agent system prompt
+- `agent.config.md` — `[meeting_role]`, `[llm_overrides]`, `[capabilities]`
+
+Built-in agents: `decision-logger`, `qa-agent`, `meetings-monitor`
+
+### Fan-out architecture
+Every finalized utterance is sent simultaneously to all active agents for the meeting.
+Employees join as participants and respond only when directly addressed by name in the transcript.
+
+### Chrome extension
+- Manifest V3 side panel (`chrome.sidePanel`)
+- Tab audio capture: `chrome.tabCapture` — works on any browser-based meeting tab
+- Auth: Supabase JWT stored in `chrome.storage.local`
+- Theming: mirrors hub's Tailwind config and CSS variables (dark/light toggle)
 
 ## Open issues — Employee 1 (Marketing Manager)
 
