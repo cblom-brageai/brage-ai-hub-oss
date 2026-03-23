@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Plus, X, Clock, RefreshCw, Send, CheckCircle, Trash2,
-  Users, FileText, CheckSquare, Paperclip, Upload,
+  Users, FileText, CheckSquare, Paperclip, Upload, BarChart2,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import type { Task, TaskStatus } from '@/lib/tasks/types'
@@ -774,6 +774,13 @@ export default function TasksPage() {
           >
             <CheckSquare size={13} />
             Tasks
+          </Link>
+          <Link
+            href="/admin"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
+          >
+            <BarChart2 size={13} />
+            Admin
           </Link>
         </nav>
 

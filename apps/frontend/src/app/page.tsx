@@ -4,7 +4,7 @@ import { readdir } from 'fs/promises'
 import path from 'path'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { MessageSquare, Settings, Brain, Zap, Plus, Users, FileText, CheckSquare } from 'lucide-react'
+import { MessageSquare, Settings, Brain, Zap, Plus, Users, FileText, CheckSquare, BarChart2 } from 'lucide-react'
 
 const EMPLOYEE_META: Record<string, string> = {
   'marketing-manager': 'Content creation, LinkedIn campaigns, and publishing strategy',
@@ -92,6 +92,13 @@ export default async function Home() {
           >
             <CheckSquare size={13} />
             Tasks
+          </Link>
+          <Link
+            href="/admin"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
+          >
+            <BarChart2 size={13} />
+            Admin
           </Link>
         </nav>
 

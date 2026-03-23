@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Users, FileText, CheckSquare, Plus, X, Search, Trash2, Edit2,
-  ChevronRight, RefreshCw,
+  ChevronRight, RefreshCw, BarChart2,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 
@@ -960,6 +960,13 @@ export default function DocumentsPage() {
           >
             <CheckSquare size={13} />
             Tasks
+          </Link>
+          <Link
+            href="/admin"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
+          >
+            <BarChart2 size={13} />
+            Admin
           </Link>
         </nav>
 

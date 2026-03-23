@@ -134,6 +134,9 @@ services:
       - EMPLOYEE_ID=marketing-manager
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
     depends_on:
       - config-api
       - employee-marketing-manager

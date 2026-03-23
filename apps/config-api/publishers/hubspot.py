@@ -8,7 +8,7 @@ def publish_to_hubspot(title: str, content: str, channel_config: dict) -> dict:
     channel_config keys: access_token (required), portal_id (optional), blog_id (optional)
     Returns {"url": post_url, "id": post_id}
     """
-    access_token = channel_config["access_token"]
+    access_token = channel_config["access_token"].strip()
     blog_id = channel_config.get("blog_id")
 
     # Basic markdown → HTML conversion: replace newlines with <br>
@@ -32,6 +32,8 @@ def publish_to_hubspot(title: str, content: str, channel_config: dict) -> dict:
         json=body,
         timeout=30,
     )
+    if not resp.is_success:
+        raise ValueError(f"HubSpot {resp.status_code}: {resp.text}")
     resp.raise_for_status()
     data = resp.json()
     return {

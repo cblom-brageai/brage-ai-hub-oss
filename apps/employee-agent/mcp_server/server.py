@@ -2,12 +2,14 @@
 Inbound MCP server — exposes the employee agent to the platform and chat UI.
 """
 import os
+import uuid
 from fastapi import FastAPI
 from pydantic import BaseModel
 import uvicorn
 
 app = FastAPI(title="Employee Agent MCP Server")
 _agent = None
+EMPLOYEE_ID = os.getenv("EMPLOYEE_ID", "unknown")
 
 
 def extract_text(content) -> str:
@@ -40,10 +42,16 @@ class TaskRequest(BaseModel):
 @app.post("/chat/{employee_id}")
 async def chat(employee_id: str, req: ChatRequest):
     import logging
+    from langchain_core.runnables.config import RunnableConfig
     logger = logging.getLogger(__name__)
     try:
         agent = await get_agent()
-        result = await agent.ainvoke({"messages": [{"role": "user", "content": req.message}]})
+        config = RunnableConfig(
+            run_name=f"{EMPLOYEE_ID}-{uuid.uuid4().hex[:8]}",
+            tags=[EMPLOYEE_ID],
+            metadata={"employee_id": EMPLOYEE_ID},
+        )
+        result = await agent.ainvoke({"messages": [{"role": "user", "content": req.message}]}, config)
         last = result["messages"][-1]
         return {"response": extract_text(last.content) if hasattr(last, "content") else str(last)}
     except Exception as e:
@@ -53,8 +61,14 @@ async def chat(employee_id: str, req: ChatRequest):
 
 @app.post("/task/{employee_id}")
 async def execute_task(employee_id: str, req: TaskRequest):
+    from langchain_core.runnables.config import RunnableConfig
     agent = await get_agent()
-    result = await agent.ainvoke({"messages": [{"role": "user", "content": req.task}]})
+    config = RunnableConfig(
+        run_name=f"{EMPLOYEE_ID}-{uuid.uuid4().hex[:8]}",
+        tags=[EMPLOYEE_ID],
+        metadata={"employee_id": EMPLOYEE_ID},
+    )
+    result = await agent.ainvoke({"messages": [{"role": "user", "content": req.task}]}, config)
     last = result["messages"][-1]
     return {"result": extract_text(last.content) if hasattr(last, "content") else str(last), "status": "completed"}
 
