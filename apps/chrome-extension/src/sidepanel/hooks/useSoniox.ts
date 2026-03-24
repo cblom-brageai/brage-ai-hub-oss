@@ -15,7 +15,7 @@ import { useState, useRef, useCallback } from 'react'
 import { api } from '../lib/api'
 import type { LiveToken, UtterancePayload } from '../../types'
 
-const SONIOX_WS = 'wss://stt-rt.soniox.com/transcribe-websocket'
+const SONIOX_WS = 'wss://stt-rt-eu.soniox.com/transcribe-websocket'
 
 interface UseSonioxOptions {
   meetingId: string

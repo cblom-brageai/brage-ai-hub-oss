@@ -134,7 +134,7 @@ Single Slack bot routes to employees by channel name. Configured in `apps/config
 ## Meeting App (dev branch)
 
 ### Soniox integration
-- WebSocket endpoint: `wss://stt-rt.soniox.com/transcribe-websocket`
+- WebSocket endpoint: `wss://stt-rt-eu.soniox.com/transcribe-websocket` (EU region)
 - Auth: API key in initial JSON config message (org-level key stored as `SONIOX_API_KEY`)
 - Model: `stt-rt-v4`, speaker diarization enabled, language identification enabled
 - The Chrome extension owns the Soniox connection — it captures tab audio via `chrome.tabCapture`, streams binary audio frames to Soniox, accumulates tokens until `is_final=true`, then POSTs completed utterances to `/api/meetings/[id]/utterance`
