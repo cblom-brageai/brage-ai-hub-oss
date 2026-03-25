@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Users, FileText, CheckSquare, BarChart2, RefreshCw,
-  Activity, Cpu, DollarSign, TrendingUp,
+  Activity, Cpu, DollarSign, TrendingUp, Calendar,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import dynamic from 'next/dynamic'
@@ -190,6 +190,13 @@ export default function AdminPage() {
           >
             <CheckSquare size={13} />
             Tasks
+          </Link>
+          <Link
+            href="/admin/meetings"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
+          >
+            <Calendar size={13} />
+            Meetings
           </Link>
           <Link
             href="/admin"

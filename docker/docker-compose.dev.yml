@@ -1,0 +1,208 @@
+name: brage_ai_hub_dev
+
+services:
+  dev-employee-marketing-manager:
+    build:
+      context: ../apps/employee-agent
+    container_name: dev-employee-marketing-manager
+    ports:
+      - "8011:8000"
+    volumes:
+      - ./employees/marketing-manager/config:/app/config
+    environment:
+      - EMPLOYEE_ID=marketing-manager
+      - CONFIG_DIR=/app/config
+      - FS_BACKEND=${FS_BACKEND:-disk}
+      - FS_ROOT=/app/config/artefacts
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+      - OLLAMA_BASE_URL=http://dev-ollama:11434
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub-dev}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_DEFAULT_CHANNEL=marketing
+    depends_on:
+      - dev-config-api
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-employee-bid-manager:
+    build:
+      context: ../apps/employee-agent
+    container_name: dev-employee-bid-manager
+    ports:
+      - "8012:8000"
+    volumes:
+      - ./employees/bid-manager/config:/app/config
+    environment:
+      - EMPLOYEE_ID=bid-manager
+      - CONFIG_DIR=/app/config
+      - FS_BACKEND=${FS_BACKEND:-disk}
+      - FS_ROOT=/app/config/artefacts
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+      - OLLAMA_BASE_URL=http://dev-ollama:11434
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub-dev}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_DEFAULT_CHANNEL=tenders
+    depends_on:
+      - dev-config-api
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-employee-project-manager:
+    build:
+      context: ../apps/employee-agent
+    container_name: dev-employee-project-manager
+    ports:
+      - "8013:8000"
+    volumes:
+      - ./employees/project-manager/config:/app/config
+    environment:
+      - EMPLOYEE_ID=project-manager
+      - CONFIG_DIR=/app/config
+      - FS_BACKEND=${FS_BACKEND:-disk}
+      - FS_ROOT=/app/config/artefacts
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+      - OLLAMA_BASE_URL=http://dev-ollama:11434
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub-dev}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_DEFAULT_CHANNEL=projects
+    depends_on:
+      - dev-config-api
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-meeting-agent:
+    build:
+      context: ../apps/meeting-agent
+    container_name: dev-meeting-agent
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./meetings/agents:/app/agent-configs
+      - ./employees:/employees:ro
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SONIOX_API_KEY=${SONIOX_API_KEY}
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub-dev}
+      - EMPLOYEE_AGENT_URLS={"marketing-manager":"http://dev-employee-marketing-manager:8000","bid-manager":"http://dev-employee-bid-manager:8000","project-manager":"http://dev-employee-project-manager:8000"}
+      - EMPLOYEES_DIR=/employees
+    depends_on:
+      - dev-employee-marketing-manager
+      - dev-employee-bid-manager
+      - dev-employee-project-manager
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-config-api:
+    build:
+      context: ../apps/config-api
+    container_name: dev-config-api
+    ports:
+      - "8091:8090"
+    volumes:
+      - ./employees:/employees
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - CONFIG_ROOT=/employees
+      - GIT_ENABLED=${GIT_ENABLED:-false}
+      - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-config@brageai.no}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - DEFAULT_EMPLOYEE=marketing-manager
+      - MARKETING_MANAGER_URL=http://dev-employee-marketing-manager:8000
+      - BID_MANAGER_URL=http://dev-employee-bid-manager:8000
+      - PROJECT_MANAGER_URL=http://dev-employee-project-manager:8000
+      - SLACK_CHANNEL_ROUTING={"marketing":"marketing-manager","general":"marketing-manager","tenders":"bid-manager","projects":"project-manager"}
+      - SLACK_BACKLOG_CHANNELS=["backlog"]
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-frontend:
+    build:
+      context: ../apps/frontend
+    container_name: dev-frontend
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./employees:/employees
+    environment:
+      - PORT=3001
+      - NEXT_PUBLIC_APP_MODE=dev
+      - CONFIG_API_URL=http://dev-config-api:8090
+      - MEETING_AGENT_URL=http://dev-meeting-agent:8010
+      - EMPLOYEES_DIR=/employees
+      - MARKETING_MANAGER_URL=http://dev-employee-marketing-manager:8000
+      - BID_MANAGER_URL=http://dev-employee-bid-manager:8000
+      - PROJECT_MANAGER_URL=http://dev-employee-project-manager:8000
+      - EMPLOYEE_ID=marketing-manager
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub-dev}
+      - SONIOX_API_KEY=${SONIOX_API_KEY}
+    depends_on:
+      - dev-config-api
+      - dev-meeting-agent
+      - dev-employee-marketing-manager
+      - dev-employee-bid-manager
+      - dev-employee-project-manager
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-ollama:
+    image: ollama/ollama:latest
+    container_name: dev-ollama
+    profiles: ["privacy"]
+    ports:
+      - "11435:11434"
+    volumes:
+      - dev_ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+networks:
+  brage-dev:
+    driver: bridge
+
+volumes:
+  dev_ollama_data:
