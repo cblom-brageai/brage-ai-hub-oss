@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Users, FileText, CheckSquare, CheckCircle } from 'lucide-react'
-import { ThemeToggle } from '@/components/theme-toggle'
+import { ArrowLeft, CheckCircle } from 'lucide-react'
+import { NavHeader } from '@/components/nav-header'
 import MarkdownIt from 'markdown-it'
 
 const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
@@ -186,41 +186,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="border-b border-[rgb(var(--border))] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[rgb(var(--primary))] flex items-center justify-center">
-            <span className="text-[rgb(var(--primary-foreground))] font-bold text-sm">B</span>
-          </div>
-          <span className="font-semibold text-lg">Brage AI Hub</span>
-        </div>
-
-        <nav className="hidden md:flex items-center gap-1">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
-          >
-            <Users size={13} />
-            Employees
-          </Link>
-          <Link
-            href="/documents"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-[rgb(var(--muted))] text-[rgb(var(--foreground))]"
-          >
-            <FileText size={13} />
-            Documents
-          </Link>
-          <Link
-            href="/tasks"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
-          >
-            <CheckSquare size={13} />
-            Tasks
-          </Link>
-        </nav>
-
-        <ThemeToggle />
-      </header>
+      <NavHeader />
 
       {/* Sub-header */}
       <div className="border-b border-[rgb(var(--border))] px-6 py-3 flex items-center justify-between">

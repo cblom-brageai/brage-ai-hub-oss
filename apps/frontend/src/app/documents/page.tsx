@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  Users, FileText, CheckSquare, Plus, X, Search, Trash2, Edit2,
-  ChevronRight, RefreshCw, BarChart2,
+  FileText, Plus, X, Search, Trash2, Edit2,
+  ChevronRight, RefreshCw,
 } from 'lucide-react'
-import { ThemeToggle } from '@/components/theme-toggle'
+import { NavHeader } from '@/components/nav-header'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -930,48 +930,7 @@ export default function DocumentsPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="border-b border-[rgb(var(--border))] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[rgb(var(--primary))] flex items-center justify-center">
-            <span className="text-[rgb(var(--primary-foreground))] font-bold text-sm">B</span>
-          </div>
-          <span className="font-semibold text-lg">Brage AI Hub</span>
-        </div>
-
-        <nav className="hidden md:flex items-center gap-1">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
-          >
-            <Users size={13} />
-            Employees
-          </Link>
-          <Link
-            href="/documents"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-[rgb(var(--muted))] text-[rgb(var(--foreground))]"
-          >
-            <FileText size={13} />
-            Documents
-          </Link>
-          <Link
-            href="/tasks"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
-          >
-            <CheckSquare size={13} />
-            Tasks
-          </Link>
-          <Link
-            href="/admin"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))] transition-colors"
-          >
-            <BarChart2 size={13} />
-            Admin
-          </Link>
-        </nav>
-
-        <ThemeToggle />
-      </header>
+      <NavHeader />
 
       {/* Sub-header tabs */}
       <div className="border-b border-[rgb(var(--border))] px-6">
