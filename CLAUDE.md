@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Prime directive
+
+**After every code change, always restart the affected service(s) so the running software reflects the latest state.** Never leave a change undeployed. For Docker services, run `cd docker && make up` (main stack) or `make dev-up` (dev stack). For frontend-only changes, the dev server hot-reloads automatically. Confirm the service is back up before reporting done.
+
 ## Architecture
 
 Turborepo monorepo with services:

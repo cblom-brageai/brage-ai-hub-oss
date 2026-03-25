@@ -3,15 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 // Allow up to 120s for agent responses (first call builds the agent)
 export const maxDuration = 120
 
-// Employee agents are addressed by ID — default maps to marketing-manager
-const AGENT_URLS: Record<string, string> = {
-  'marketing-manager': process.env.MARKETING_MANAGER_URL || 'http://localhost:8001',
-  'bid-manager':       process.env.BID_MANAGER_URL       || 'http://localhost:8002',
-  'project-manager':   process.env.PROJECT_MANAGER_URL   || 'http://localhost:8003',
-}
-
+// Resolve employee agent URL dynamically from env (e.g. quality-manager → QUALITY_MANAGER_URL)
+// Falls back to Docker service naming convention: http://employee-{id}:8000
 function agentUrl(employee_id: string): string {
-  return AGENT_URLS[employee_id] ?? process.env.DEFAULT_AGENT_URL ?? 'http://localhost:8001'
+  const envKey = employee_id.toUpperCase().replace(/-/g, '_') + '_URL'
+  return process.env[envKey] ?? `http://employee-${employee_id}:8000`
 }
 
 export async function POST(req: NextRequest) {

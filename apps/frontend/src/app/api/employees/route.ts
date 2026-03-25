@@ -8,6 +8,12 @@ const EMPLOYEE_META: Record<string, string> = {
   'marketing-manager': 'Content creation, LinkedIn campaigns, and publishing strategy',
   'bid-manager': 'EPC tender responses, technical proposals, and bid win strategy',
   'project-manager': 'PRINCE2 project governance for PV and BESS installations',
+  'quality-manager': 'ISO compliance, audit preparation, and quality assurance processes',
+  'omengineer': 'Asset maintenance planning, CMMS workflows, and operational reliability',
+}
+
+const EMPLOYEE_NAMES: Record<string, string> = {
+  'omengineer': 'O&M Engineer',
 }
 
 export async function GET() {
@@ -25,7 +31,7 @@ export async function GET() {
           skills = skillFiles.filter((f) => f.endsWith('.md')).map((f) => f.replace('.md', ''))
         } catch {}
 
-        const name = id
+        const name = EMPLOYEE_NAMES[id] ?? id
           .split('-')
           .map((w) => w[0].toUpperCase() + w.slice(1))
           .join(' ')

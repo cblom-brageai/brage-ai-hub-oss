@@ -91,6 +91,36 @@ services:
       - config-api
     restart: unless-stopped
 
+  employee-quality-manager:
+    build:
+      context: ../apps/employee-agent
+    container_name: employee-quality-manager
+    ports:
+      - "8004:8000"
+    volumes:
+      - ./employees/quality-manager/config:/app/config
+    environment:
+      - EMPLOYEE_ID=quality-manager
+      - CONFIG_DIR=/app/config
+      - FS_BACKEND=${FS_BACKEND:-disk}
+      - FS_ROOT=/app/config/artefacts
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_DEFAULT_CHANNEL=quality
+    depends_on:
+      - config-api
+    restart: unless-stopped
+
   config-api:
     build:
       context: ../apps/config-api
@@ -110,7 +140,8 @@ services:
       - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
       - BID_MANAGER_URL=http://employee-bid-manager:8000
       - PROJECT_MANAGER_URL=http://employee-project-manager:8000
-      - SLACK_CHANNEL_ROUTING={"marketing":"marketing-manager","general":"marketing-manager","tenders":"bid-manager","projects":"project-manager"}
+      - QUALITY_MANAGER_URL=http://employee-quality-manager:8000
+      - SLACK_CHANNEL_ROUTING={"marketing":"marketing-manager","general":"marketing-manager","tenders":"bid-manager","projects":"project-manager","quality":"quality-manager"}
       - SLACK_BACKLOG_CHANNELS=["backlog"]
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
@@ -124,14 +155,16 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./employees:/employees:ro
+      - ./employees:/employees
     environment:
       - CONFIG_API_URL=http://config-api:8090
       - EMPLOYEES_DIR=/employees
       - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
       - BID_MANAGER_URL=http://employee-bid-manager:8000
       - PROJECT_MANAGER_URL=http://employee-project-manager:8000
+      - QUALITY_MANAGER_URL=http://employee-quality-manager:8000
       - EMPLOYEE_ID=marketing-manager
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
@@ -142,6 +175,7 @@ services:
       - employee-marketing-manager
       - employee-bid-manager
       - employee-project-manager
+      - employee-quality-manager
     restart: unless-stopped
 
   ollama:
