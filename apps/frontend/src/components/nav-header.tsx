@@ -18,6 +18,7 @@ export function NavHeader() {
 
   function isActive(href: string) {
     if (href === '/') return pathname === '/'
+    if (href === '/admin') return pathname === '/admin' || (pathname.startsWith('/admin') && !pathname.startsWith('/admin/meetings'))
     return pathname.startsWith(href)
   }
 
