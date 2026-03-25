@@ -23,6 +23,28 @@ export function useMeetingRealtime(meetingId: string | null) {
     setAgendaStatus([])
   }, [meetingId])
 
+  // Initial fetch of existing rows (ignore errors — Realtime will keep things live)
+  useEffect(() => {
+    if (!meetingId) return
+    const db = getSupabase()
+    db.from('meeting_transcriptions').select('*').eq('meeting_id', meetingId)
+      .order('sequence_number').then(({ data, error }) => {
+        if (!error && data?.length) setTranscriptions(data as MeetingTranscription[])
+      })
+    db.from('meeting_decisions').select('*').eq('meeting_id', meetingId)
+      .order('created_at').then(({ data, error }) => {
+        if (!error && data?.length) setDecisions(data as MeetingDecision[])
+      })
+    db.from('meeting_qa_pairs').select('*').eq('meeting_id', meetingId)
+      .order('created_at').then(({ data, error }) => {
+        if (!error && data?.length) setQaPairs(data as MeetingQAPair[])
+      })
+    db.from('meeting_agenda_status').select('*').eq('meeting_id', meetingId)
+      .order('agenda_sequence').then(({ data, error }) => {
+        if (!error && data?.length) setAgendaStatus(data as MeetingAgendaStatus[])
+      })
+  }, [meetingId])
+
   useEffect(() => {
     if (!meetingId) return
 

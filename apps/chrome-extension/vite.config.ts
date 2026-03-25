@@ -33,12 +33,15 @@ export default defineConfig({
     rollupOptions: {
       input: {
         background: resolve(__dirname, 'src/background.ts'),
+        'mic-bridge': resolve(__dirname, 'src/mic-bridge.ts'),
         sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),
       },
       output: {
         // Keep entry file names predictable (manifest references them)
         entryFileNames: (chunk) =>
-          chunk.name === 'background' ? 'background.js' : 'assets/[name]-[hash].js',
+          chunk.name === 'background' || chunk.name === 'mic-bridge'
+            ? `${chunk.name}.js`
+            : 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
       },

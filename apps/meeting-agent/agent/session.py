@@ -114,7 +114,9 @@ class MeetingSession:
         tasks: list = []
 
         if self._decision_logger:
-            tasks.append(self._decision_logger.process(self.meeting_id, utterance))
+            # Pass last 5 utterances as context so the model can resolve ambiguous references
+            context = self._transcript[-6:-1]
+            tasks.append(self._decision_logger.process(self.meeting_id, utterance, context))
 
         if self._qa_agent:
             tasks.append(self._qa_agent.process(self.meeting_id, utterance))

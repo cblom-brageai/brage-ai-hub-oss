@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       .select(`
         id, title, description, status, scheduled_at, started_at, ended_at,
         agenda, language_hints, created_by, created_at, updated_at,
-        meeting_participants ( participant_type, participant_id, active, joined_at )
+        meeting_participants ( id, participant_type, participant_id, active, joined_at )
       `)
       .eq('id', params.id)
       .single()

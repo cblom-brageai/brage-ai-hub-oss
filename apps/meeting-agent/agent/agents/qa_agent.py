@@ -124,7 +124,14 @@ Provide a direct, helpful answer (2–4 sentences). If using company documents, 
 
         try:
             response = await self._writer.ainvoke(answer_prompt)
-            answer_text = response.content if hasattr(response, "content") else str(response)
+            content = response.content if hasattr(response, "content") else str(response)
+            if isinstance(content, list):
+                answer_text = "".join(
+                    block.get("text", "") if isinstance(block, dict) else str(block)
+                    for block in content
+                )
+            else:
+                answer_text = str(content)
         except Exception as e:
             logger.error("Answer generation LLM error: %s", e)
             answer_text = "_(Could not generate an answer at this time.)_"

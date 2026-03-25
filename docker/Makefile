@@ -1,5 +1,5 @@
-COMPOSE      = docker compose -f docker-compose.local.yml
-COMPOSE_DEV  = docker compose -f docker-compose.dev.yml
+COMPOSE      = docker compose --env-file ../.env -f docker-compose.local.yml
+COMPOSE_DEV  = docker compose --env-file ../.env -f docker-compose.dev.yml
 
 # ── Main (port 3000) ──────────────────────────────────────────────────────────
 

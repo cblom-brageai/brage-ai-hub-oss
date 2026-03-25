@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import {
-  Mic, MicOff, Square, LogOut, ChevronLeft,
+  Mic, PhoneOff, Square, LogOut, ChevronLeft,
   Sun, Moon, Radio, MessageSquare, CheckCircle, ListChecks,
 } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
@@ -46,7 +46,7 @@ type TabId = typeof TABS[number]['id']
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export function App() {
-  const { user, loading: authLoading, signIn, signOut } = useAuth()
+  const { user, loading: authLoading, signIn, signInWithGoogle, signOut } = useAuth()
   const { dark, toggle: toggleTheme } = useTheme()
   const [meeting, setMeeting] = useState<Meeting | null>(null)
   const [tab, setTab] = useState<TabId>('live')
@@ -87,16 +87,15 @@ export function App() {
     setMeeting(m)
     setLocalTranscriptions([])
     setTab('live')
-    // Auto-start if already active
-    if (m.status !== 'active') {
-      await api.meetings.start(m.id).catch(console.error)
-    }
+    // Always call start — meeting-agent handles re-connect gracefully if session already exists
+    await api.meetings.start(m.id).catch(console.error)
   }
 
-  async function handleStopMeeting() {
+  function handleStopMeeting() {
     soniox.stop()
     if (meeting) {
-      await api.meetings.end(meeting.id).catch(console.error)
+      // Fire-and-forget — MoM generation can take time; don't block navigation
+      api.meetings.end(meeting.id).catch(console.error)
     }
     setMeeting(null)
     setLocalTranscriptions([])
@@ -123,7 +122,7 @@ export function App() {
           </button>
         </div>
         <div className="flex-1">
-          <LoginForm onSignIn={signIn} />
+          <LoginForm onSignIn={signIn} onSignInWithGoogle={signInWithGoogle} />
         </div>
       </div>
     )
@@ -208,10 +207,10 @@ export function App() {
           )}
           <button
             onClick={handleStopMeeting}
-            className="p-1.5 rounded-lg border border-[rgb(var(--border))] hover:bg-[rgb(var(--muted))] text-xs text-[rgb(var(--muted-foreground))]"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs transition-colors"
             title="End meeting"
           >
-            <MicOff size={13} />
+            <PhoneOff size={11} /> End
           </button>
         </div>
       </div>

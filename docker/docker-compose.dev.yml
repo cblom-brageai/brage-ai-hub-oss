@@ -160,7 +160,7 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./employees:/employees:ro
+      - ./employees:/employees
     environment:
       - PORT=3001
       - NEXT_PUBLIC_APP_MODE=dev
@@ -173,6 +173,7 @@ services:
       - EMPLOYEE_ID=marketing-manager
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
       - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
       - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub-dev}

@@ -12,7 +12,7 @@ Endpoints:
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel
 
 from agent.tools.supabase_client import get_client
@@ -134,10 +134,11 @@ async def chat_message(meeting_id: str, req: ChatRequest):
 
 
 @app.post("/meetings/{meeting_id}/end")
-async def end_meeting(meeting_id: str):
+async def end_meeting(meeting_id: str, background_tasks: BackgroundTasks):
     session = _get_session(meeting_id)
-    await session.end()
     del _sessions[meeting_id]
+    # Run teardown (MoM generation, status update) in background — don't block response
+    background_tasks.add_task(session.end)
     return {"status": "ended", "meeting_id": meeting_id}
 
 

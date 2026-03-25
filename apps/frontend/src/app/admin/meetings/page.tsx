@@ -51,7 +51,7 @@ export default function MeetingsListPage() {
     const url = filter === 'all' ? '/api/meetings' : `/api/meetings?status=${filter}`
     fetch(url)
       .then((r) => r.json())
-      .then(setMeetings)
+      .then((data) => setMeetings(Array.isArray(data) ? data : []))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [filter])

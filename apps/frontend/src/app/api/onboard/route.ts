@@ -58,11 +58,14 @@ export async function POST(req: NextRequest) {
       systemInstruction: SYSTEM_PROMPT,
     })
 
-    // Convert messages to Gemini format (all but the last as history)
-    const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+    // Convert messages to Gemini format (all but the last as history).
+    // Gemini requires history to start with a 'user' turn — drop any leading model messages.
+    const allHistory = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
       role: m.role === 'user' ? 'user' : 'model',
       parts: [{ text: m.content }],
     }))
+    const firstUser = allHistory.findIndex((m: { role: string }) => m.role === 'user')
+    const history = firstUser >= 0 ? allHistory.slice(firstUser) : []
 
     const lastMessage = messages[messages.length - 1].content
 

@@ -4,7 +4,12 @@
   "version": "0.1.0",
   "description": "AI-assisted meeting transcription and insights for any browser-based meeting.",
 
-  "permissions": ["sidePanel", "tabCapture", "storage", "tabs", "activeTab"],
+  "permissions": ["sidePanel", "tabCapture", "storage", "tabs", "activeTab", "identity", "scripting"],
+  "host_permissions": [
+    "http://localhost:3001/*",
+    "https://stt-rt.eu.soniox.com/*",
+    "<all_urls>"
+  ],
 
   "background": {
     "service_worker": "background.js",
@@ -12,7 +17,7 @@
   },
 
   "side_panel": {
-    "default_path": "sidepanel/index.html"
+    "default_path": "src/sidepanel/index.html"
   },
 
   "action": {
