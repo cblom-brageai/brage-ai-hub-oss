@@ -131,7 +131,7 @@ Single Slack bot routes to employees by channel name. Configured in `apps/config
 - Meeting tables (migration `007_meetings`): `meetings`, `meeting_participants`, `meeting_transcriptions`, `meeting_decisions`, `meeting_qa_pairs`, `meeting_agenda_status`, `meeting_mom`
 - Supabase Realtime enabled on meeting tables — Chrome extension subscribes directly for agent output
 
-## Meeting App (dev branch)
+## Meeting App
 
 ### Soniox integration
 - WebSocket endpoint: `wss://stt-rt.eu.soniox.com/transcribe-websocket` (EU region)
@@ -156,6 +156,18 @@ Employees join as participants and respond only when directly addressed by name 
 - Tab audio capture: `chrome.tabCapture` — works on any browser-based meeting tab
 - Auth: Supabase JWT stored in `chrome.storage.local`
 - Theming: mirrors hub's Tailwind config and CSS variables (dark/light toggle)
+- Built artifact is in `apps/chrome-extension/dist/` (gitignored — must run `pnpm build` locally)
+- `VITE_HUB_URL` in `apps/chrome-extension/.env` controls which backend the extension talks to (`http://localhost:3001` for dev stack, `http://localhost:3000` for main stack)
+- After changing `VITE_HUB_URL`: run `pnpm build` then reload the extension in `chrome://extensions`
+
+### Extension ↔ meeting-agent session lifecycle
+- The extension always calls `POST /api/meetings/[id]/start` when opening a meeting, regardless of the meeting's DB status. The meeting-agent handles re-connects gracefully (`already_active` if session exists, or creates a new session if the server restarted). **Do not add a status guard here** — skipping `/start` when status is `active` causes agents to silently not run after a server restart.
+- `POST /meetings/[id]/end` on the meeting-agent returns immediately; all teardown (MoM generation, DB status update) runs as a FastAPI `BackgroundTasks` task. The extension fires this call without awaiting the response so navigation is instant.
+
+### Decision logger — known behaviour
+- Each utterance is evaluated with the last 5 utterances injected as context so references like "let's go with that" resolve correctly.
+- Confidence threshold: `0.65` (lowered from 0.70). Defined as `CONFIDENCE_THRESHOLD` in `agent/agents/decision_logger.py`.
+- The decision-logger agent is only instantiated if `decision-logger` is in `meeting_participants` for that meeting. Verify the meeting was created with the agent selected (admin UI defaults all agents to selected).
 
 ## Open issues — Employee 1 (Marketing Manager)
 
@@ -242,4 +254,4 @@ JSON-schema-driven templates for documents produced by employees.
 | MCP client | `langchain-mcp-adapters` (outbound) |
 | Frontend | Next.js 14, Tailwind CSS, App Router |
 | Storage | Supabase (PostgreSQL) |
-| Meeting audio | Soniox (future) |
+| Meeting audio | Soniox (`stt-rt-v4`, EU endpoint) |
