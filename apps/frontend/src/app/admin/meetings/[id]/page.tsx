@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
-  Play, Square, RefreshCw, CheckCircle, Clock,
+  Square, RefreshCw, CheckCircle,
   MessageSquare, ListChecks, FileText, Mic, Radio,
-  ChevronDown, ChevronUp,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { NavHeader } from '@/components/nav-header'
@@ -179,18 +178,6 @@ export default function MeetingDetailPage() {
 
   // ── Actions ─────────────────────────────────────────────────────────────────
 
-  async function handleStart() {
-    setActionLoading(true)
-    try {
-      const res = await fetch(`/api/meetings/${id}/start`, { method: 'POST' })
-      if (res.ok) {
-        setMeeting((prev) => prev ? { ...prev, status: 'active' } : prev)
-      }
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
   async function handleEnd() {
     if (!confirm('End this meeting? This will generate Minutes of Meeting.')) return
     setActionLoading(true)
@@ -257,16 +244,6 @@ export default function MeetingDetailPage() {
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
-          {meeting.status === 'scheduled' && (
-            <button
-              onClick={handleStart}
-              disabled={actionLoading}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
-            >
-              <Play size={13} />
-              Start Meeting
-            </button>
-          )}
           {meeting.status === 'active' && (
             <button
               onClick={handleEnd}

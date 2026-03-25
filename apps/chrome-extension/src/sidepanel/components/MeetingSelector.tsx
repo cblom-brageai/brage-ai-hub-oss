@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Radio, Clock } from 'lucide-react'
+import { Calendar, Radio, Clock, Plus } from 'lucide-react'
 import { api } from '../lib/api'
+import { CreateMeetingForm } from './CreateMeetingForm'
 import type { Meeting } from '../../types'
 
 interface Props {
@@ -10,8 +11,10 @@ interface Props {
 export function MeetingSelector({ onSelect }: Props) {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
 
-  useEffect(() => {
+  function fetchMeetings() {
+    setLoading(true)
     Promise.all([
       api.meetings.list('active'),
       api.meetings.list('scheduled'),
@@ -19,33 +22,55 @@ export function MeetingSelector({ onSelect }: Props) {
       .then(([active, scheduled]) => setMeetings([...active, ...scheduled]))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }
 
-  if (loading) {
+  useEffect(() => { fetchMeetings() }, [])
+
+  if (showCreate) {
     return (
-      <div className="flex items-center justify-center h-32 text-[rgb(var(--muted-foreground))] text-sm">
-        Loading meetings…
-      </div>
+      <CreateMeetingForm
+        onSave={onSelect}
+        onScheduled={() => { setShowCreate(false); fetchMeetings() }}
+        onBack={() => setShowCreate(false)}
+      />
     )
   }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-[rgb(var(--border))]">
-        <h2 className="text-sm font-semibold">Select a Meeting</h2>
-        <p className="text-xs text-[rgb(var(--muted-foreground))] mt-0.5">
-          Active and upcoming meetings
-        </p>
+      <div className="px-4 py-3 border-b border-[rgb(var(--border))] flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold">Meetings</h2>
+          <p className="text-xs text-[rgb(var(--muted-foreground))] mt-0.5">
+            {loading ? 'Loading…' : `${meetings.length} active or upcoming`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] text-xs font-medium hover:opacity-90 transition-opacity"
+        >
+          <Plus size={12} />
+          Add Meeting
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {meetings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 gap-2 text-[rgb(var(--muted-foreground))]">
+        {loading ? (
+          <div className="flex items-center justify-center h-32 text-[rgb(var(--muted-foreground))] text-xs">
+            Loading meetings…
+          </div>
+        ) : meetings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-3 text-[rgb(var(--muted-foreground))]">
             <Calendar size={28} className="opacity-30" />
-            <p className="text-xs text-center">
-              No active or scheduled meetings.<br />
-              Create one in the Brage AI Hub.
-            </p>
+            <p className="text-xs text-center">No active or scheduled meetings.</p>
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="text-xs text-[rgb(var(--primary))] hover:underline"
+            >
+              Create one now
+            </button>
           </div>
         ) : (
           meetings.map((m) => (
