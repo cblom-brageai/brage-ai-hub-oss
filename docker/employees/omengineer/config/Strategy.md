@@ -17,6 +17,10 @@ Providing technical oversight for Brage's solar and battery storage portfolio to
 | Weekly Performance Report | Weekly (PDF/Markdown) |
 | Monthly Asset Optimization Review | Monthly |
 
+## Output Protocol
+
+Every completed report or analysis (Performance Report, Alarm Summary, Asset Optimization Review, diagnostic findings) MUST be saved to the company document hub using `store_result` before notifying via Slack. Pass `source="slack"` or `source="chat"` as appropriate. The Slack message to #operations should reference that the document has been saved to the hub.
+
 ## Decision Authority
 
 ### Autonomous

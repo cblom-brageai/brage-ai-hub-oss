@@ -54,11 +54,21 @@ def publish_word_to_slack(title: str, content: str, channel_config: dict) -> dic
     buffer.seek(0)
 
     client = WebClient(token=bot_token)
-    resp = client.files_upload(
-        channels=channel,
+
+    # files_upload_v2 requires a channel ID, not a name — resolve if needed
+    import re
+    channel_id = channel.lstrip("#")
+    if not re.match(r'^[CGDZ][A-Z0-9]{8,}$', channel_id):
+        for page in client.conversations_list(types="public_channel,private_channel", limit=200):
+            match = next((c for c in page["channels"] if c["name"] == channel_id), None)
+            if match:
+                channel_id = match["id"]
+                break
+
+    resp = client.files_upload_v2(
+        channel=channel_id,
         file=buffer,
         filename=f"{title}.docx",
-        filetype="docx",
         title=title,
     )
 

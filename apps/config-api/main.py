@@ -306,6 +306,8 @@ def _complete_task(task: dict, response: str):
         artefact_linked = artefact and artefact.get("task_id") == task_id
 
         if artefact_linked:
+            # Link artefact to task so approve_task_and_publish can dispatch Word publishing
+            update_task(task_id, {"artefact_id": artefact["id"]})
             artefact_title = artefact.get("title", "")
             content = artefact.get("content", "")
             # Slack's chat.postMessage has a ~40,000 char limit; large artefacts

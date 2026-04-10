@@ -82,9 +82,11 @@ Do NOT write the content when asked to create tasks — just register each task 
 
     custom_tools = [request_human_approval, send_message, store_result, list_artefacts, read_artefact, create_task]
 
-    # FilesystemBackend rooted at CONFIG_DIR so skill paths resolve correctly
+    # FilesystemBackend rooted at CONFIG_DIR so skill paths resolve correctly.
+    # virtual_mode=True confines the agent to root_dir — absolute paths like
+    # /proc/... are remapped into root_dir instead of bypassing it.
     config_dir = os.getenv("CONFIG_DIR", "/app/config")
-    backend = FilesystemBackend(root_dir=config_dir)
+    backend = FilesystemBackend(root_dir=config_dir, virtual_mode=True)
 
     agent = create_deep_agent(
         model=get_llm(config.llm_overrides.get("reason")),

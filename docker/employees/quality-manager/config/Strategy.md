@@ -19,6 +19,10 @@ The Quality Manager is responsible for maintaining the integrity of Brage’s op
 | Integrated Management System (IMS) Report | Monthly |
 | Project Quality Gate Review | Per Project Stage |
 
+## Output Protocol
+
+Every completed deliverable (Compliance Snapshot, Non-Conformity Log, IMS Report, Quality Gate Review, audit findings, CAPA summaries, policy drafts) MUST be saved to the company document hub using `store_result` before notifying via Slack. Pass `source="slack"` or `source="chat"` as appropriate. The Slack message should reference that the document has been saved to the hub.
+
 ## Decision Authority
 
 ### Autonomous

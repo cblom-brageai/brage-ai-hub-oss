@@ -37,9 +37,13 @@ const RECURRENCE_PRESETS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const EMPLOYEE_DISPLAY_NAMES: Record<string, string> = {
+  'omengineer': 'O&M Engineer',
+}
+
 function employeeName(id?: string) {
   if (!id) return null
-  return id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')
+  return EMPLOYEE_DISPLAY_NAMES[id] ?? id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')
 }
 
 function formatDate(iso?: string) {
