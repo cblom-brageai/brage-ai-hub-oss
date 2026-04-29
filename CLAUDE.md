@@ -173,6 +173,46 @@ Employees join as participants and respond only when directly addressed by name 
 - Confidence threshold: `0.65` (lowered from 0.70). Defined as `CONFIDENCE_THRESHOLD` in `agent/agents/decision_logger.py`.
 - The decision-logger agent is only instantiated if `decision-logger` is in `meeting_participants` for that meeting. Verify the meeting was created with the agent selected (admin UI defaults all agents to selected).
 
+## Employee roster
+
+| Employee ID | Container | Port | Slack channel(s) |
+|---|---|---|---|
+| `marketing-manager` | `employee-marketing-manager` | 8001 | `#marketing`, `#general` |
+| `bid-manager` | `employee-bid-manager` | 8002 | `#tenders` |
+| `project-manager` | `employee-project-manager` | 8003 | `#projects` |
+| `quality-manager` | `employee-quality-manager` | 8004 | `#quality` |
+| `omengineer` | `employee-omengineer` | 8005 | `#operations` |
+| `developer` | `employee-developer` | 8006 | `#software`, `#dev` |
+
+## Developer employee
+
+Added 2026-04-29. Skills: `mcp-server-creation`, `github-workflow`, `ci-cd-cloud-run`, `ci-cd-azure`, `field-device-deploy` (Tailscale Raspberry Pi), `api-design`, `code-review`, `debugging`.
+
+**GitHub MCP server** (`ghcr.io/github/github-mcp-server`) runs as `github-mcp` container on internal port 8082. Toolsets: `repos,git,pull_requests,issues,actions`. Requires `GITHUB_TOKEN` in `.env`.
+
+**Field device deployment** (Tailscale): Developer generates a GitHub Actions workflow that joins Tailscale, SSHes to the device, and runs `docker compose pull && up -d`. Same architecture as cloud deployments.
+
+**Dry-run rule**: Developer's Strategy.md mandates calling a health/status endpoint to verify auth before any deployment touching an external API. Block on failure.
+
+**Local LLM (future)**: set `PRIVACY_MODE=true` on `employee-developer` + pull `qwen2.5-coder:14b` via Ollama. No code changes needed.
+
+**Human gate**: requires approval before `merge_to_main`, `deploy_to_field_device`, `add_production_secret`, `send_external_data`.
+
+### Missing tokens for Developer (not yet in .env)
+
+| Token | Where to get | Env var |
+|---|---|---|
+| GitHub Personal Access Token | github.com → Settings → Developer settings → Fine-grained tokens; scopes: `repo`, `workflow`, `pull_requests:write` | `GITHUB_TOKEN` in `.env` |
+| Tailscale OAuth client ID | Tailscale admin console → Settings → OAuth clients; tag: `tag:ci` | `TAILSCALE_OAUTH_CLIENT_ID` in GitHub repo secrets |
+| Tailscale OAuth client secret | Same | `TAILSCALE_OAUTH_CLIENT_SECRET` in GitHub repo secrets |
+| Field device SSH key | `ssh-keygen -t ed25519 -C "github-deploy"`; public key → device `~/.ssh/authorized_keys` | `FIELD_SSH_KEY` in GitHub repo secrets |
+
+After adding `GITHUB_TOKEN` to `.env`: `docker compose -f docker/docker-compose.local.yml restart github-mcp`
+
+## Meeting agent (main stack)
+
+`meeting-agent` runs on port 8010 in `docker-compose.local.yml` (added 2026-04-29 — was only in dev stack before). `MEETING_AGENT_URL=http://meeting-agent:8010` wired into frontend. All 6 employees included in `EMPLOYEE_AGENT_URLS`.
+
 ## Open issues — Employee 1 (Marketing Manager)
 
 - **Human approval gate not tested** — `[human_gate]` config exists in `agent.config.md` but `request_human_approval` tool has not been exercised. Should pause before `publish_external`, `send_email`, `campaign_launch`.

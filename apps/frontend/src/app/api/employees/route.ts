@@ -10,6 +10,7 @@ const EMPLOYEE_META: Record<string, string> = {
   'project-manager': 'PRINCE2 project governance for PV and BESS installations',
   'quality-manager': 'ISO compliance, audit preparation, and quality assurance processes',
   'omengineer': 'Asset maintenance planning, CMMS workflows, and operational reliability',
+  'developer': 'MCP server creation, CI/CD pipelines, GitHub workflows, and field device deployment',
 }
 
 const EMPLOYEE_NAMES: Record<string, string> = {
