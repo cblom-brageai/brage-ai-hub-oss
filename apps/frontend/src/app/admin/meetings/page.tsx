@@ -37,8 +37,35 @@ function formatDate(iso: string | null) {
   })
 }
 
-function participantCount(meeting: Meeting) {
-  return meeting.meeting_participants?.length ?? '—'
+const AGENT_LABELS: Record<string, string> = {
+  'decision-logger': 'Decision Logger',
+  'qa-agent': 'Q&A Agent',
+  'meetings-monitor': 'Meetings Monitor',
+}
+
+function formatParticipantId(id: string) {
+  return AGENT_LABELS[id] ?? id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')
+}
+
+function ParticipantList({ meeting }: { meeting: Meeting }) {
+  const ps = meeting.meeting_participants
+  if (!ps || ps.length === 0) return <span className="text-[rgb(var(--muted-foreground))]">—</span>
+  return (
+    <div className="flex flex-wrap gap-1">
+      {ps.map((p) => (
+        <span
+          key={p.participant_id}
+          className={`inline-flex px-1.5 py-0.5 rounded text-xs ${
+            p.participant_type === 'agent'
+              ? 'bg-blue-500/10 text-blue-400'
+              : 'bg-teal-500/10 text-teal-400'
+          }`}
+        >
+          {formatParticipantId(p.participant_id)}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 export default function MeetingsListPage() {
@@ -144,8 +171,8 @@ export default function MeetingsListPage() {
                     <td className="px-4 py-3 text-[rgb(var(--muted-foreground))] hidden sm:table-cell">
                       {formatDate(m.scheduled_at)}
                     </td>
-                    <td className="px-4 py-3 text-[rgb(var(--muted-foreground))] hidden md:table-cell">
-                      {participantCount(m)}
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <ParticipantList meeting={m} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const db = getSupabase()
     let query = db
       .from('meetings')
-      .select('id, title, description, status, scheduled_at, started_at, ended_at, agenda, language_hints, created_by, created_at')
+      .select('id, title, description, status, scheduled_at, started_at, ended_at, agenda, language_hints, created_by, created_at, meeting_participants(participant_type, participant_id)')
       .order('scheduled_at', { ascending: false })
 
     if (status) query = query.eq('status', status)
