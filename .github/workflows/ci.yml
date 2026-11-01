@@ -15,9 +15,7 @@ jobs:
         working-directory: apps/frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: pnpm/action-setup@v4   # pnpm version comes from packageManager in package.json
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -36,9 +34,7 @@ jobs:
         working-directory: apps/chrome-extension
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: pnpm/action-setup@v4   # pnpm version comes from packageManager in package.json
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
