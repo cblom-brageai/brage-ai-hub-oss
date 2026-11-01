@@ -91,7 +91,7 @@ export function useSoniox({ meetingId, languageHints, onUtterance }: UseSonioxOp
   }
 
   function makeMsgHandler(
-    ws: WebSocket,
+    _ws: WebSocket,
     finalBuf: React.MutableRefObject<LiveToken[]>,
     source: 'tab' | 'mic',
   ) {

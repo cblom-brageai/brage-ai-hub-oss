@@ -1,11 +1,11 @@
 /**
  * Typed API client for the Brage AI Hub backend.
- * All requests go to VITE_HUB_URL (e.g. http://localhost:3001).
+ * All requests go to VITE_HUB_URL (e.g. http://localhost:3000).
  */
 
 import type { Meeting, UtterancePayload } from '../../types'
 
-const HUB = (import.meta.env.VITE_HUB_URL as string) || 'http://localhost:3001'
+const HUB = (import.meta.env.VITE_HUB_URL as string) || 'http://localhost:3000'
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${HUB}${path}`)

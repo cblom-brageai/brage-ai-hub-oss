@@ -383,7 +383,7 @@ export default function MeetingDetailPage() {
                   </div>
                   {d.context_quote && (
                     <blockquote className="border-l-2 border-[rgb(var(--primary))]/40 pl-3 text-xs text-[rgb(var(--muted-foreground))] italic">
-                      "{d.context_quote}"
+                      &quot;{d.context_quote}&quot;
                     </blockquote>
                   )}
                   <p className="text-xs text-[rgb(var(--muted-foreground))]">{ts(d.logged_at)}</p>

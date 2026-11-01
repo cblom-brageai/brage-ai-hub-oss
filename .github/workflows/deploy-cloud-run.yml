@@ -1,4 +1,7 @@
 name: Deploy to Cloud Run
+# Manual deployment example for Google Cloud Run. Services are deployed with authentication
+# required; put an IAM-authenticated proxy or your own ingress in front of them. Requires the
+# GCP_PROJECT_ID and GCP_SA_KEY repository secrets and the app secrets in Secret Manager.
 
 on:
   workflow_dispatch:
@@ -31,9 +34,9 @@ jobs:
             --image gcr.io/$PROJECT_ID/employee-marketing-manager \
             --region $REGION \
             --platform managed \
-            --allow-unauthenticated \
+            --no-allow-unauthenticated \
             --set-env-vars "EMPLOYEE_ID=marketing-manager" \
-            --set-secrets "ANTHROPIC_API_KEY=anthropic-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,LANGCHAIN_API_KEY=langchain-api-key:latest" \
+            --set-secrets "GOOGLE_API_KEY=google-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,LANGCHAIN_API_KEY=langchain-api-key:latest" \
             --project $PROJECT_ID
 
   deploy-config-api:
@@ -59,7 +62,7 @@ jobs:
             --image gcr.io/$PROJECT_ID/config-api \
             --region $REGION \
             --platform managed \
-            --allow-unauthenticated \
+            --no-allow-unauthenticated \
             --project $PROJECT_ID
 
   deploy-frontend:
@@ -86,5 +89,5 @@ jobs:
             --image gcr.io/$PROJECT_ID/frontend \
             --region $REGION \
             --platform managed \
-            --allow-unauthenticated \
+            --no-allow-unauthenticated \
             --project $PROJECT_ID

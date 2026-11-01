@@ -14,8 +14,8 @@ export default defineConfig({
     // Map root .env names → extension VITE_ names consumed by lib/supabase.ts and lib/api.ts
     'import.meta.env.VITE_SUPABASE_URL':  JSON.stringify(env.SUPABASE_URL  ?? ''),
     'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_KEY ?? ''),
-    // FRONTEND_URL should be http://localhost:3001 in .env for dev branch
-    'import.meta.env.VITE_HUB_URL': JSON.stringify(env.FRONTEND_URL ?? 'http://localhost:3001'),
+    // FRONTEND_URL in the root .env selects the hub (3000 = main stack, 3001 = dev stack)
+    'import.meta.env.VITE_HUB_URL': JSON.stringify(env.FRONTEND_URL ?? 'http://localhost:3000'),
   },
   plugins: [
     react(),

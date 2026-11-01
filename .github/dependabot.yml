@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /apps/employee-agent
+    schedule: { interval: weekly }
+  - package-ecosystem: pip
+    directory: /apps/config-api
+    schedule: { interval: weekly }
+  - package-ecosystem: pip
+    directory: /apps/meeting-agent
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /apps/frontend
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /apps/chrome-extension
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

@@ -273,7 +273,7 @@ function TemplateModal({
         {step === 1 && (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-[rgb(var(--muted-foreground))]">
-              Describe the document type and we'll generate a JSON Schema for it.
+              Describe the document type and we&apos;ll generate a JSON Schema for it.
             </p>
             <textarea
               value={prompt}

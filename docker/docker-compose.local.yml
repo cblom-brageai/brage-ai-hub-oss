@@ -1,246 +1,170 @@
+# Local stack: six example employees, the config API, the meeting agent, the hub frontend
+# and (optionally) a local Ollama server for privacy mode.
+#
+#   cd docker && make up                                   # or: docker compose --env-file ../.env -f docker-compose.local.yml up
+#   PRIVACY_MODE=true docker compose --env-file ../.env -f docker-compose.local.yml --profile privacy up
+#
+# Every employee shares the same image and environment; only EMPLOYEE_ID, the mounted
+# config folder, the port and the default Slack channel differ. Add an employee by copying
+# one service block and a folder under docker/employees/ (see docs/employees.md).
 name: brage_ai_hub
+
+x-llm-env: &llm-env
+  # Model routing — see docs/privacy-mode.md and apps/employee-agent/agent/llm_selector.py
+  DEFAULT_LLM: ${DEFAULT_LLM:-gemini-3-flash-preview}
+  REASONING_LLM: ${REASONING_LLM:-gemini-3.1-pro-preview}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  PRIVACY_MODE: ${PRIVACY_MODE:-false}
+  OLLAMA_BASE_URL: http://ollama:11434
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+  # LangSmith tracing is opt-in — see docs/observability.md
+  LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
+  LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT:-https://api.smith.langchain.com}
+  LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+  LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-brage-ai-hub}
+
+x-supabase-env: &supabase-env
+  SUPABASE_URL: ${SUPABASE_URL}
+  SUPABASE_KEY: ${SUPABASE_KEY}
+
+x-employee-env: &employee-env
+  <<: [*llm-env, *supabase-env]
+  CONFIG_DIR: /app/config
+  COMPANY_NAME: ${COMPANY_NAME:-Brage AI}
+  SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+
+x-employee: &employee
+  build:
+    context: ../apps/employee-agent
+  depends_on:
+    - config-api
+  restart: unless-stopped
+
+x-employee-urls: &employee-urls
+  MARKETING_MANAGER_URL: http://employee-marketing-manager:8000
+  BID_MANAGER_URL: http://employee-bid-manager:8000
+  PROJECT_MANAGER_URL: http://employee-project-manager:8000
+  QUALITY_MANAGER_URL: http://employee-quality-manager:8000
+  OMENGINEER_URL: http://employee-omengineer:8000
+  DEVELOPER_URL: http://employee-developer:8000
 
 services:
   employee-marketing-manager:
-    build:
-      context: ../apps/employee-agent
+    <<: *employee
     container_name: employee-marketing-manager
-    ports:
-      - "8001:8000"
+    ports: ["8001:8000"]
     volumes:
       - ./employees/marketing-manager/config:/app/config
     environment:
-      - EMPLOYEE_ID=marketing-manager
-      - CONFIG_DIR=/app/config
-      - FS_BACKEND=${FS_BACKEND:-disk}
-      - FS_ROOT=/app/config/artefacts
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PRIVACY_MODE=${PRIVACY_MODE:-false}
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
-      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - SLACK_DEFAULT_CHANNEL=marketing
-    depends_on:
-      - config-api
-    restart: unless-stopped
+      <<: *employee-env
+      EMPLOYEE_ID: marketing-manager
+      SLACK_DEFAULT_CHANNEL: marketing
 
   employee-bid-manager:
-    build:
-      context: ../apps/employee-agent
+    <<: *employee
     container_name: employee-bid-manager
-    ports:
-      - "8002:8000"
+    ports: ["8002:8000"]
     volumes:
       - ./employees/bid-manager/config:/app/config
     environment:
-      - EMPLOYEE_ID=bid-manager
-      - CONFIG_DIR=/app/config
-      - FS_BACKEND=${FS_BACKEND:-disk}
-      - FS_ROOT=/app/config/artefacts
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PRIVACY_MODE=${PRIVACY_MODE:-false}
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
-      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - SLACK_DEFAULT_CHANNEL=tenders
-    depends_on:
-      - config-api
-    restart: unless-stopped
+      <<: *employee-env
+      EMPLOYEE_ID: bid-manager
+      SLACK_DEFAULT_CHANNEL: tenders
 
   employee-project-manager:
-    build:
-      context: ../apps/employee-agent
+    <<: *employee
     container_name: employee-project-manager
-    ports:
-      - "8003:8000"
+    ports: ["8003:8000"]
     volumes:
       - ./employees/project-manager/config:/app/config
     environment:
-      - EMPLOYEE_ID=project-manager
-      - CONFIG_DIR=/app/config
-      - FS_BACKEND=${FS_BACKEND:-disk}
-      - FS_ROOT=/app/config/artefacts
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PRIVACY_MODE=${PRIVACY_MODE:-false}
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
-      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - SLACK_DEFAULT_CHANNEL=projects
-    depends_on:
-      - config-api
-    restart: unless-stopped
+      <<: *employee-env
+      EMPLOYEE_ID: project-manager
+      SLACK_DEFAULT_CHANNEL: projects
 
   employee-quality-manager:
-    build:
-      context: ../apps/employee-agent
+    <<: *employee
     container_name: employee-quality-manager
-    ports:
-      - "8004:8000"
+    ports: ["8004:8000"]
     volumes:
       - ./employees/quality-manager/config:/app/config
     environment:
-      - EMPLOYEE_ID=quality-manager
-      - CONFIG_DIR=/app/config
-      - FS_BACKEND=${FS_BACKEND:-disk}
-      - FS_ROOT=/app/config/artefacts
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PRIVACY_MODE=${PRIVACY_MODE:-false}
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
-      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - SLACK_DEFAULT_CHANNEL=quality
-    depends_on:
-      - config-api
-    restart: unless-stopped
+      <<: *employee-env
+      EMPLOYEE_ID: quality-manager
+      SLACK_DEFAULT_CHANNEL: quality
 
   employee-omengineer:
-    build:
-      context: ../apps/employee-agent
+    <<: *employee
     container_name: employee-omengineer
-    ports:
-      - "8005:8000"
+    ports: ["8005:8000"]
     volumes:
       - ./employees/omengineer/config:/app/config
     environment:
-      - EMPLOYEE_ID=omengineer
-      - CONFIG_DIR=/app/config
-      - FS_BACKEND=${FS_BACKEND:-disk}
-      - FS_ROOT=/app/config/artefacts
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PRIVACY_MODE=${PRIVACY_MODE:-false}
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
-      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - SLACK_DEFAULT_CHANNEL=operations
+      <<: *employee-env
+      EMPLOYEE_ID: omengineer
+      SLACK_DEFAULT_CHANNEL: operations
+
+  employee-developer:
+    <<: *employee
+    container_name: employee-developer
+    ports: ["8006:8000"]
+    volumes:
+      - ./employees/developer/config:/app/config
+    environment:
+      <<: *employee-env
+      EMPLOYEE_ID: developer
+      SLACK_DEFAULT_CHANNEL: dev
     depends_on:
       - config-api
+      - github-mcp
+
+  # GitHub MCP server used by the developer employee (needs GITHUB_TOKEN in .env)
+  github-mcp:
+    image: ghcr.io/github/github-mcp-server:latest
+    container_name: github-mcp
+    ports: ["8011:8082"]
+    environment:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_TOKEN:-}
+    command: ["http", "--port", "8082", "--toolsets", "repos,git,pull_requests,issues,actions"]
     restart: unless-stopped
 
   config-api:
     build:
       context: ../apps/config-api
     container_name: config-api
-    ports:
-      - "8090:8090"
+    ports: ["8090:8090"]
     volumes:
       - ./employees:/employees
+      # Needed only for live reload (SIGHUP to employee containers). Grants the container
+      # control over the Docker daemon — see SECURITY.md before exposing this stack.
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - CONFIG_ROOT=/employees
-      - GIT_ENABLED=${GIT_ENABLED:-false}
-      - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-config@brageai.no}
-      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
-      - DEFAULT_EMPLOYEE=marketing-manager
-      - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
-      - BID_MANAGER_URL=http://employee-bid-manager:8000
-      - PROJECT_MANAGER_URL=http://employee-project-manager:8000
-      - QUALITY_MANAGER_URL=http://employee-quality-manager:8000
-      - OMENGINEER_URL=http://employee-omengineer:8000
-      - DEVELOPER_URL=http://employee-developer:8000
-      - SLACK_CHANNEL_ROUTING={"marketing":"marketing-manager","general":"marketing-manager","tenders":"bid-manager","projects":"project-manager","quality":"quality-manager","operations":"omengineer","dev":"developer","software":"developer"}
-      - SLACK_BACKLOG_CHANNELS=["backlog"]
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-    restart: unless-stopped
-
-  github-mcp:
-    image: ghcr.io/github/github-mcp-server:latest
-    container_name: github-mcp
-    ports:
-      - "8011:8082"
-    environment:
-      - GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_TOKEN}
-    command: ["http", "--port", "8082", "--toolsets", "repos,git,pull_requests,issues,actions"]
-    restart: unless-stopped
-
-  employee-developer:
-    build:
-      context: ../apps/employee-agent
-    container_name: employee-developer
-    ports:
-      - "8006:8000"
-    volumes:
-      - ./employees/developer/config:/app/config
-    environment:
-      - EMPLOYEE_ID=developer
-      - CONFIG_DIR=/app/config
-      - FS_BACKEND=${FS_BACKEND:-disk}
-      - FS_ROOT=/app/config/artefacts
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PRIVACY_MODE=${PRIVACY_MODE:-false}
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
-      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - SLACK_DEFAULT_CHANNEL=dev
-    depends_on:
-      - config-api
-      - github-mcp
+      <<: [*llm-env, *supabase-env, *employee-urls]
+      CONFIG_ROOT: /employees
+      GIT_ENABLED: ${GIT_ENABLED:-false}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-config-api@example.com}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:-}
+      DEFAULT_EMPLOYEE: marketing-manager
+      SLACK_CHANNEL_ROUTING: '{"marketing":"marketing-manager","general":"marketing-manager","tenders":"bid-manager","projects":"project-manager","quality":"quality-manager","operations":"omengineer","dev":"developer","software":"developer"}'
+      SLACK_BACKLOG_CHANNELS: '["backlog"]'
     restart: unless-stopped
 
   meeting-agent:
     build:
       context: ../apps/meeting-agent
     container_name: meeting-agent
-    ports:
-      - "8010:8010"
+    ports: ["8010:8010"]
     volumes:
       - ./meetings/agents:/app/agent-configs
       - ./employees:/employees:ro
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - SONIOX_API_KEY=${SONIOX_API_KEY}
-      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
-      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
-      - EMPLOYEE_AGENT_URLS={"marketing-manager":"http://employee-marketing-manager:8000","bid-manager":"http://employee-bid-manager:8000","project-manager":"http://employee-project-manager:8000","quality-manager":"http://employee-quality-manager:8000","omengineer":"http://employee-omengineer:8000","developer":"http://employee-developer:8000"}
-      - EMPLOYEES_DIR=/employees
+      <<: [*llm-env, *supabase-env]
+      SONIOX_API_KEY: ${SONIOX_API_KEY:-}
+      EMPLOYEE_AGENT_URLS: '{"marketing-manager":"http://employee-marketing-manager:8000","bid-manager":"http://employee-bid-manager:8000","project-manager":"http://employee-project-manager:8000","quality-manager":"http://employee-quality-manager:8000","omengineer":"http://employee-omengineer:8000","developer":"http://employee-developer:8000"}'
+      EMPLOYEES_DIR: /employees
     depends_on:
       - employee-marketing-manager
       - employee-bid-manager
@@ -253,27 +177,22 @@ services:
     build:
       context: ../apps/frontend
     container_name: frontend
-    ports:
-      - "3000:3000"
+    ports: ["3000:3000"]
     volumes:
       - ./employees:/employees
     environment:
-      - CONFIG_API_URL=http://config-api:8090
-      - MEETING_AGENT_URL=http://meeting-agent:8010
-      - EMPLOYEES_DIR=/employees
-      - MARKETING_MANAGER_URL=http://employee-marketing-manager:8000
-      - BID_MANAGER_URL=http://employee-bid-manager:8000
-      - PROJECT_MANAGER_URL=http://employee-project-manager:8000
-      - QUALITY_MANAGER_URL=http://employee-quality-manager:8000
-      - OMENGINEER_URL=http://employee-omengineer:8000
-      - DEVELOPER_URL=http://employee-developer:8000
-      - EMPLOYEE_ID=marketing-manager
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
-      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-brage-ai-hub}
+      <<: [*supabase-env, *employee-urls]
+      CONFIG_API_URL: http://config-api:8090
+      MEETING_AGENT_URL: http://meeting-agent:8010
+      EMPLOYEES_DIR: /employees
+      EMPLOYEE_ID: marketing-manager
+      COMPANY_NAME: ${COMPANY_NAME:-Brage AI}
+      COMPANY_DESCRIPTION: ${COMPANY_DESCRIPTION:-}
+      SONIOX_API_KEY: ${SONIOX_API_KEY:-}
+      # Admin usage page reads LangSmith runs when a key is configured
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT:-https://api.smith.langchain.com}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-brage-ai-hub}
     depends_on:
       - config-api
       - meeting-agent
@@ -285,12 +204,13 @@ services:
       - employee-developer
     restart: unless-stopped
 
+  # Local models for privacy mode: start with --profile privacy, then
+  #   docker exec ollama ollama pull llama3.1:8b
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
     profiles: ["privacy"]
-    ports:
-      - "11434:11434"
+    ports: ["11434:11434"]
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
