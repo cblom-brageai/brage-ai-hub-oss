@@ -3,7 +3,7 @@
 langchain-core>=0.3
 # Model providers (lazy-imported by agent/llm_selector.py)
 langchain-google-genai>=1.0
-langchain-anthropic>=0.3
+langchain-anthropic>=1.7.7
 langchain-openai>=0.3
 langchain-ollama>=0.2
 # Storage
