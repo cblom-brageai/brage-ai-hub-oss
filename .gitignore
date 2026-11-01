@@ -35,3 +35,6 @@ docker-compose.override.yml
 
 # Artefacts (written by Deep Agents)
 apps/employee-agent/config/artefacts/
+
+# TypeScript incremental build info
+*.tsbuildinfo

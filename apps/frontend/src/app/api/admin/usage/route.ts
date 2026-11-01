@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const LANGCHAIN_API_KEY = process.env.LANGCHAIN_API_KEY ?? ''
-const LANGCHAIN_PROJECT = process.env.LANGCHAIN_PROJECT ?? 'Brage-AI-Hub'
+const LANGCHAIN_PROJECT = process.env.LANGCHAIN_PROJECT ?? 'brage-ai-hub'
 const LANGCHAIN_ENDPOINT = process.env.LANGCHAIN_ENDPOINT ?? 'https://eu.api.smith.langchain.com'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Run = Record<string, any>
 
 const EMPTY_RESPONSE = {
