@@ -14,7 +14,7 @@ jobs:
   deploy-employee-agent:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: google-github-actions/auth@v2
         with:
@@ -42,7 +42,7 @@ jobs:
   deploy-config-api:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: google-github-actions/auth@v2
         with:
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-config-api]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: google-github-actions/auth@v2
         with:
