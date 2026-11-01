@@ -21,17 +21,12 @@ certifi==2026.4.22
     #   httpcore
     #   httpx
     #   requests
-cffi==2.0.0 ; platform_python_implementation != 'PyPy'
+cffi==2.0.0
     # via cryptography
 charset-normalizer==3.4.7
     # via requests
 click==8.3.3
     # via uvicorn
-colorama==0.4.6 ; sys_platform == 'win32'
-    # via
-    #   click
-    #   tqdm
-    #   uvicorn
 croniter==6.2.2
     # via -r requirements.in
 cryptography==47.0.0
@@ -51,7 +46,7 @@ gitdb==4.0.12
     # via gitpython
 gitpython==3.1.49
     # via -r requirements.in
-google-auth==2.50.0
+google-auth[requests]==2.50.0
     # via google-genai
 google-genai==1.74.0
     # via langchain-google-genai
@@ -111,7 +106,7 @@ ollama==0.6.2
     # via langchain-ollama
 openai==2.33.0
     # via langchain-openai
-orjson==3.11.8 ; platform_python_implementation != 'PyPy'
+orjson==3.11.8
     # via langsmith
 packaging==26.2
     # via
@@ -121,7 +116,7 @@ pyasn1==0.6.3
     # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
-pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
+pycparser==3.0
     # via cffi
 pydantic==2.13.3
     # via
@@ -147,7 +142,7 @@ python-dotenv==1.2.2
     # via
     #   -r requirements.in
     #   uvicorn
-python-multipart==0.0.27
+python-multipart==0.0.32
     # via -r requirements.in
 pyyaml==6.0.3
     # via
@@ -204,8 +199,6 @@ typing-inspection==0.4.2
     # via
     #   fastapi
     #   pydantic
-tzdata==2026.2 ; sys_platform == 'win32'
-    # via tzlocal
 tzlocal==5.3.1
     # via apscheduler
 urllib3==2.6.3
@@ -214,9 +207,9 @@ uuid-utils==0.14.1
     # via
     #   langchain-core
     #   langsmith
-uvicorn==0.46.0
+uvicorn[standard]==0.46.0
     # via -r requirements.in
-uvloop==0.22.1 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
+uvloop==0.22.1
     # via uvicorn
 watchfiles==1.1.1
     # via uvicorn
