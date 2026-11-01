@@ -8,7 +8,7 @@ httpx>=0.27.0
 requests>=2.31.0
 python-multipart>=0.0.9
 # Config file versioning (optional, GIT_ENABLED=true)
-gitpython>=3.1.43
+gitpython>=3.2.1
 # Slack router
 slack-sdk>=3.27.0
 pypdf>=4.0.0
