@@ -1,6 +1,6 @@
 # Runtime dependencies for the meeting agent.
 # Pinned versions live in requirements.txt (generated with `uv pip compile`, see CONTRIBUTING.md).
-langchain-core>=0.3
+langchain-core>=1.7.3
 # Model providers (lazy-imported by agent/llm_selector.py)
 langchain-google-genai>=1.0
 langchain-anthropic>=0.3
