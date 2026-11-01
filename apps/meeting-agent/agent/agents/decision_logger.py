@@ -11,6 +11,7 @@ import logging
 from pydantic import BaseModel, Field
 from agent.config_loader import load_agent_config
 from agent.llm_selector import get_llm
+from agent.tracing import run_config
 from agent.tools.log_decision import log_decision
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class DecisionLoggerAgent:
         config = load_agent_config(AGENT_ID)
         self._personality = config.personality_md
         reason_model = config.llm_overrides.get("reason", "gemini-3.1-pro-preview")
-        self._llm = get_llm(reason_model).with_structured_output(DecisionDetection)
+        self._llm = get_llm(reason_model, role="reason").with_structured_output(DecisionDetection)
 
     async def process(
         self, meeting_id: str, utterance: dict, context: list[dict] | None = None
@@ -68,7 +69,9 @@ Current utterance (by {speaker}):
 Respond with structured output only."""
 
         try:
-            result: DecisionDetection = await self._llm.ainvoke(prompt)
+            result: DecisionDetection = await self._llm.ainvoke(
+                prompt, config=run_config(AGENT_ID, meeting_id, "detect-decision")
+            )
         except Exception as e:
             logger.warning("Decision detection LLM error: %s", e)
             return

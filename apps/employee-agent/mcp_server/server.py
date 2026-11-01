@@ -1,13 +1,24 @@
 """
-Inbound MCP server — exposes the employee agent to the platform and chat UI.
+Inbound HTTP server — exposes the employee agent to the platform and chat UI.
+
+Every conversation runs on a LangGraph thread (``thread_id``). Reusing a thread id keeps
+the conversation history between calls; omitting it starts a fresh thread. When the agent
+calls the human approval gate, the call returns ``pending_approval=True`` with the draft,
+and ``POST /resume/{employee_id}`` continues the same thread with the reviewer's answer.
 """
+import logging
 import os
 import uuid
-from fastapi import FastAPI
-from pydantic import BaseModel
-import uvicorn
 
-app = FastAPI(title="Employee Agent MCP Server")
+import uvicorn
+from fastapi import FastAPI
+from langchain_core.runnables.config import RunnableConfig
+from langgraph.types import Command
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="Employee Agent")
 _agent = None
 EMPLOYEE_ID = os.getenv("EMPLOYEE_ID", "unknown")
 
@@ -30,47 +41,93 @@ async def get_agent():
     return _agent
 
 
+def run_config(thread_id: str) -> RunnableConfig:
+    """Thread + tracing metadata attached to every graph invocation."""
+    return RunnableConfig(
+        run_name=f"{EMPLOYEE_ID}-{thread_id[:8]}",
+        tags=[EMPLOYEE_ID],
+        metadata={"employee_id": EMPLOYEE_ID, "thread_id": thread_id},
+        configurable={"thread_id": thread_id},
+    )
+
+
+def format_result(result: dict, thread_id: str) -> dict:
+    """Turn a graph result into the API response, surfacing a pending approval gate."""
+    interrupts = result.get("__interrupt__") or []
+    if interrupts:
+        payload = getattr(interrupts[0], "value", interrupts[0])
+        payload = payload if isinstance(payload, dict) else {"reason": str(payload)}
+        reason = payload.get("reason") or "Approval requested"
+        draft = payload.get("draft_output") or ""
+        return {
+            "response": f"**Approval requested:** {reason}\n\n{draft}".strip(),
+            "pending_approval": True,
+            "interrupt": payload,
+            "thread_id": thread_id,
+        }
+    messages = result.get("messages") or []
+    last = messages[-1] if messages else None
+    text = extract_text(last.content) if hasattr(last, "content") else (str(last) if last else "")
+    return {"response": text, "pending_approval": False, "thread_id": thread_id}
+
+
 class ChatRequest(BaseModel):
     message: str
+    thread_id: str | None = None
 
 
 class TaskRequest(BaseModel):
     task: str
     context: dict = {}
+    thread_id: str | None = None
+
+
+class ResumeRequest(BaseModel):
+    thread_id: str
+    approved: bool = True
+    feedback: str = ""
 
 
 @app.post("/chat/{employee_id}")
 async def chat(employee_id: str, req: ChatRequest):
-    import logging
-    from langchain_core.runnables.config import RunnableConfig
-    logger = logging.getLogger(__name__)
+    thread_id = req.thread_id or uuid.uuid4().hex
     try:
         agent = await get_agent()
-        config = RunnableConfig(
-            run_name=f"{EMPLOYEE_ID}-{uuid.uuid4().hex[:8]}",
-            tags=[EMPLOYEE_ID],
-            metadata={"employee_id": EMPLOYEE_ID},
+        result = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": req.message}]}, run_config(thread_id)
         )
-        result = await agent.ainvoke({"messages": [{"role": "user", "content": req.message}]}, config)
-        last = result["messages"][-1]
-        return {"response": extract_text(last.content) if hasattr(last, "content") else str(last)}
+        return format_result(result, thread_id)
     except Exception as e:
         logger.exception("Agent error for %s", employee_id)
-        return {"response": f"_(agent error: {e})_"}
+        return {"response": f"_(agent error: {e})_", "pending_approval": False, "thread_id": thread_id}
 
 
 @app.post("/task/{employee_id}")
 async def execute_task(employee_id: str, req: TaskRequest):
-    from langchain_core.runnables.config import RunnableConfig
+    thread_id = req.thread_id or req.context.get("task_id") or uuid.uuid4().hex
     agent = await get_agent()
-    config = RunnableConfig(
-        run_name=f"{EMPLOYEE_ID}-{uuid.uuid4().hex[:8]}",
-        tags=[EMPLOYEE_ID],
-        metadata={"employee_id": EMPLOYEE_ID},
+    result = await agent.ainvoke(
+        {"messages": [{"role": "user", "content": req.task}]}, run_config(thread_id)
     )
-    result = await agent.ainvoke({"messages": [{"role": "user", "content": req.task}]}, config)
-    last = result["messages"][-1]
-    return {"result": extract_text(last.content) if hasattr(last, "content") else str(last), "status": "completed"}
+    out = format_result(result, thread_id)
+    out["result"] = out["response"]
+    out["status"] = "awaiting_approval" if out["pending_approval"] else "completed"
+    return out
+
+
+@app.post("/resume/{employee_id}")
+async def resume(employee_id: str, req: ResumeRequest):
+    """Answer a pending human-approval gate and continue the thread."""
+    try:
+        agent = await get_agent()
+        result = await agent.ainvoke(
+            Command(resume={"approved": req.approved, "feedback": req.feedback}),
+            run_config(req.thread_id),
+        )
+        return format_result(result, req.thread_id)
+    except Exception as e:
+        logger.exception("Resume error for %s", employee_id)
+        return {"response": f"_(agent error: {e})_", "pending_approval": False, "thread_id": req.thread_id}
 
 
 @app.get("/health")

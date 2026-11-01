@@ -10,11 +10,11 @@ Agenda tracking runs on every utterance. The LLM determines which agenda item
 
 MoM generation is triggered explicitly when the session ends.
 """
-import json
 import logging
 from pydantic import BaseModel, Field
 from agent.config_loader import load_agent_config
 from agent.llm_selector import get_llm
+from agent.tracing import run_config
 from agent.tools.update_agenda import upsert_agenda_status, get_agenda_status
 from agent.tools.write_mom import write_mom
 
@@ -41,8 +41,8 @@ class MeetingsMonitorAgent:
         self._personality = config.personality_md
         reason_model = config.llm_overrides.get("reason", "gemini-3.1-pro-preview")
         write_model = config.llm_overrides.get("write", "gemini-3-flash-preview")
-        self._classifier = get_llm(reason_model).with_structured_output(AgendaClassification)
-        self._writer = get_llm(write_model)
+        self._classifier = get_llm(reason_model, role="reason").with_structured_output(AgendaClassification)
+        self._writer = get_llm(write_model, role="write")
 
     async def process(
         self,
@@ -83,7 +83,9 @@ Rules:
 Respond with structured output only."""
 
         try:
-            result: AgendaClassification = await self._classifier.ainvoke(prompt)
+            result: AgendaClassification = await self._classifier.ainvoke(
+                prompt, config=run_config(AGENT_ID, meeting_id, "classify-agenda")
+            )
         except Exception as e:
             logger.warning("Agenda classification LLM error: %s", e)
             return
@@ -170,7 +172,9 @@ Write complete, professional Minutes of Meeting in Markdown format. Include:
 Be concise and factual. Do not invent information not present in the transcript."""
 
         try:
-            response = await self._writer.ainvoke(prompt)
+            response = await self._writer.ainvoke(
+                prompt, config=run_config(AGENT_ID, meeting_id, "write-mom")
+            )
             content = response.content if hasattr(response, "content") else str(response)
             mom_id = await write_mom(meeting_id, content)
             logger.info("MoM written (id=%s) for meeting %s", mom_id, meeting_id)

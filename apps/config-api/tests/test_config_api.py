@@ -1,7 +1,5 @@
 import pytest
 from fastapi.testclient import TestClient
-import tempfile, os
-from pathlib import Path
 
 
 @pytest.fixture

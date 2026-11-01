@@ -14,6 +14,7 @@ import logging
 from pydantic import BaseModel, Field
 from agent.config_loader import load_agent_config
 from agent.llm_selector import get_llm
+from agent.tracing import run_config
 from agent.tools.search_artefacts import search_artefacts
 from agent.tools.answer_question import create_question, answer_question
 
@@ -35,8 +36,8 @@ class QAAgent:
         self._personality = config.personality_md
         reason_model = config.llm_overrides.get("reason", "gemini-3.1-pro-preview")
         write_model = config.llm_overrides.get("write", "gemini-3-flash-preview")
-        self._detector = get_llm(reason_model).with_structured_output(QuestionDetection)
-        self._writer = get_llm(write_model)
+        self._detector = get_llm(reason_model, role="reason").with_structured_output(QuestionDetection)
+        self._writer = get_llm(write_model, role="write")
 
     async def process(self, meeting_id: str, utterance: dict) -> None:
         """Process a transcript utterance — detect and answer questions."""
@@ -59,7 +60,9 @@ Utterance (by {speaker}):
 Respond with structured output only."""
 
         try:
-            detection: QuestionDetection = await self._detector.ainvoke(detection_prompt)
+            detection: QuestionDetection = await self._detector.ainvoke(
+                detection_prompt, config=run_config(AGENT_ID, meeting_id, "detect-question")
+            )
         except Exception as e:
             logger.warning("Question detection LLM error: %s", e)
             return
@@ -123,7 +126,9 @@ Question: {question_text}
 Provide a direct, helpful answer (2–4 sentences). If using company documents, cite the source title."""
 
         try:
-            response = await self._writer.ainvoke(answer_prompt)
+            response = await self._writer.ainvoke(
+                answer_prompt, config=run_config(AGENT_ID, meeting_id, "answer")
+            )
             content = response.content if hasattr(response, "content") else str(response)
             if isinstance(content, list):
                 answer_text = "".join(

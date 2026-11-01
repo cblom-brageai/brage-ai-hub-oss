@@ -6,7 +6,6 @@ import re
 def _parse_markdown_to_docx(title: str, content: str):
     """Convert markdown text to a python-docx Document."""
     from docx import Document
-    from docx.shared import Pt
 
     doc = Document()
     doc.add_heading(title, level=0)

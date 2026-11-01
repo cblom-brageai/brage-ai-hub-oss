@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { llmGenerate } from '@/lib/llm'
 
 export const maxDuration = 60
 
-const SYSTEM_PROMPT = `You are an employee onboarding assistant for the Brage AI Hub — a platform for managing AI virtual employees at a Norwegian renewable energy company called Brage.
+const COMPANY_NAME = process.env.COMPANY_NAME || 'the company'
+const COMPANY_DESCRIPTION = process.env.COMPANY_DESCRIPTION || ''
 
-Virtual employees are AI agents that handle specific business functions. They use Google Gemini LLM and communicate via chat and Slack. Each employee needs:
+const SYSTEM_PROMPT = `You are an employee onboarding assistant for the AI Hub — a platform for managing AI virtual employees at ${COMPANY_NAME}${COMPANY_DESCRIPTION ? ` (${COMPANY_DESCRIPTION})` : ''}.
+
+Virtual employees are AI agents that handle specific business functions. They use the hub's configured LLM provider and communicate via chat and Slack. Each employee needs:
 - A role name and ID
 - A Strategy document (6-month goals, deliverables, decision authority)
 - A Personality document (communication style, values, tone)
@@ -43,39 +46,28 @@ Be conversational, helpful, and proactive. Suggest good defaults. Keep questions
 export async function POST(req: NextRequest) {
   const { messages } = await req.json()
 
-  const apiKey = process.env.GOOGLE_API_KEY
-  if (!apiKey) {
-    return NextResponse.json(
-      { response: 'GOOGLE_API_KEY is not configured. Add it to your .env.local file.' },
-      { status: 200 }
-    )
-  }
+  // Gemini-style history rules also apply here: drop leading assistant turns.
+  const allHistory = (messages as { role: string; content: string }[]).map((m) => ({
+    role: m.role === 'user' ? ('user' as const) : ('assistant' as const),
+    content: m.content,
+  }))
+  const firstUser = allHistory.findIndex((m) => m.role === 'user')
+  const history = firstUser >= 0 ? allHistory.slice(firstUser) : []
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-3-flash-preview',
-      systemInstruction: SYSTEM_PROMPT,
+    const result = await llmGenerate({
+      system: SYSTEM_PROMPT,
+      messages: history,
+      role: 'write',
+      run_name: 'onboarding-chat',
+      metadata: { feature: 'onboarding' },
     })
-
-    // Convert messages to Gemini format (all but the last as history).
-    // Gemini requires history to start with a 'user' turn — drop any leading model messages.
-    const allHistory = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }],
-    }))
-    const firstUser = allHistory.findIndex((m: { role: string }) => m.role === 'user')
-    const history = firstUser >= 0 ? allHistory.slice(firstUser) : []
-
-    const lastMessage = messages[messages.length - 1].content
-
-    const chat = model.startChat({ history })
-    const result = await chat.sendMessage(lastMessage)
-    const text = result.response.text()
-
-    return NextResponse.json({ response: text })
+    return NextResponse.json({ response: result.text })
   } catch (err) {
-    console.error('Gemini API error:', err)
-    return NextResponse.json({ response: 'Error connecting to Gemini. Check your API key.' }, { status: 200 })
+    console.error('LLM gateway error:', err)
+    return NextResponse.json(
+      { response: 'Error reaching the LLM gateway. Check that config-api is running and an LLM provider is configured.' },
+      { status: 200 }
+    )
   }
 }

@@ -50,7 +50,7 @@ def _run_task(task: dict):
     ]))
 
     try:
-        response = call_employee(employee_id, message)
+        response = call_employee(employee_id, message, thread_id=f"task-{task_id}")
 
         # Compute next run for recurring tasks; move one-off to awaiting_approval
         next_run = _next_run(recurrence) if recurrence else None

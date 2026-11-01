@@ -34,7 +34,6 @@ def _slack_web_client() -> "WebClient | None":
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN", "")   # xapp-... for Socket Mode
 DEFAULT_EMPLOYEE = os.getenv("DEFAULT_EMPLOYEE", "marketing-manager")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 # Channels whose messages always become backlog tasks (no employee routing)
 # Set via SLACK_BACKLOG_CHANNELS env var as JSON array: '["backlog", "tasks"]'
@@ -72,21 +71,69 @@ def resolve_employee(channel_name: str | None, command: str | None, channel_id: 
     return DEFAULT_EMPLOYEE
 
 
-def call_employee(employee_id: str, message: str, timeout: int = 600) -> str:
+def call_employee_full(
+    employee_id: str, message: str, timeout: int = 600, thread_id: str | None = None
+) -> dict:
+    """Send a message to an employee agent. Reusing ``thread_id`` keeps the conversation."""
     url = _employee_url(employee_id)
     try:
         resp = httpx.post(
             f"{url}/chat/{employee_id}",
-            json={"message": message},
+            json={"message": message, "thread_id": thread_id},
             timeout=timeout,
         )
         resp.raise_for_status()
-        return resp.json().get("response", "_(no response)_")
+        data = resp.json()
+        data.setdefault("response", "_(no response)_")
+        return data
     except httpx.TimeoutException:
-        return "_(agent timed out — it may still be working)_"
+        return {"response": "_(agent timed out — it may still be working)_"}
     except Exception as e:
         logger.error("Employee call failed: %s", e)
-        return f"_(error reaching {employee_id}: {e})_"
+        return {"response": f"_(error reaching {employee_id}: {e})_"}
+
+
+def call_employee(
+    employee_id: str, message: str, timeout: int = 600, thread_id: str | None = None
+) -> str:
+    return call_employee_full(employee_id, message, timeout, thread_id)["response"]
+
+
+def resume_employee(employee_id: str, thread_id: str, approved: bool, feedback: str = "") -> dict:
+    """Answer a pending human-approval gate on an employee thread."""
+    url = _employee_url(employee_id)
+    try:
+        resp = httpx.post(
+            f"{url}/resume/{employee_id}",
+            json={"thread_id": thread_id, "approved": approved, "feedback": feedback},
+            timeout=600,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        data.setdefault("response", "_(no response)_")
+        return data
+    except Exception as e:
+        logger.error("Employee resume failed: %s", e)
+        return {"response": f"_(error reaching {employee_id}: {e})_"}
+
+
+# Slack threads with an open human-approval gate: (channel_id, thread_ts) -> (employee_id, thread_id)
+_pending_gates: dict[tuple[str, str], tuple[str, str]] = {}
+
+_APPROVE_WORDS = ("approve", "approved", "✅", "yes", "go ahead", "ok", "lgtm")
+_REJECT_WORDS = ("reject", "rejected", "no", "❌", "stop", "cancel")
+
+
+def _handle_gate_reply_via_slack(web: "WebClient", key: tuple[str, str], text: str):
+    employee_id, thread_id = _pending_gates.pop(key)
+    lowered = text.lower()
+    approved = any(w in lowered for w in _APPROVE_WORDS) and not any(w in lowered for w in _REJECT_WORDS)
+    result = resume_employee(employee_id, thread_id, approved=approved, feedback=text)
+    response = result.get("response", "_(no response)_")
+    if result.get("pending_approval"):
+        _pending_gates[key] = (employee_id, result.get("thread_id", thread_id))
+        response += "\n\n_Reply in this thread with *approve* or *reject* (optionally with feedback)._"
+    web.chat_postMessage(channel=key[0], thread_ts=key[1], text=response)
 
 
 # ── Task intent detection ─────────────────────────────────────────────────────
@@ -115,19 +162,22 @@ Reply with a JSON object only, no markdown:
 
 def _classify_task_intent(message: str) -> dict | None:
     """
-    Use Gemini Flash to decide if a Slack message is a task creation request.
+    Use the configured writing model to decide if a Slack message is a task creation request.
     Returns parsed JSON dict, or None on failure.
     """
-    if not GOOGLE_API_KEY:
-        return None
     try:
-        import google.generativeai as genai  # type: ignore
-        genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel("gemini-3-flash-preview")
-        resp = model.generate_content(
-            f"{_TASK_CLASSIFY_PROMPT}\n\nSlack message:\n{message}"
+        from langchain_core.runnables import RunnableConfig
+        from llm_selector import get_llm
+
+        llm = get_llm(role="write")
+        resp = llm.invoke(
+            f"{_TASK_CLASSIFY_PROMPT}\n\nSlack message:\n{message}",
+            config=RunnableConfig(run_name="slack-task-intent", tags=["config-api", "slack"]),
         )
-        text = resp.text.strip()
+        content = resp.content if hasattr(resp, "content") else str(resp)
+        if isinstance(content, list):
+            content = "".join(b.get("text", "") if isinstance(b, dict) else str(b) for b in content)
+        text = str(content).strip()
         # Strip markdown code fences if present
         if text.startswith("```"):
             text = text.split("```")[1]
@@ -229,8 +279,15 @@ def handle_message(web: WebClient, payload: dict):
     channel_type = event.get("channel_type", "")
     thread_ts = event.get("thread_ts") or event.get("ts")
 
-    # Check if this is an approval message in a task thread
     raw_text_check = (event.get("text") or "").strip().lower()
+
+    # A reply in a thread where an employee is waiting for human approval
+    gate_key = (channel_id, thread_ts)
+    if gate_key in _pending_gates and raw_text_check:
+        _handle_gate_reply_via_slack(web, gate_key, raw_text_check)
+        return
+
+    # Check if this is an approval message in a task thread
     if thread_ts and any(word in raw_text_check for word in ["approved", "approve", "✅"]):
         _handle_approval_via_slack(web, channel_id, thread_ts, raw_text_check)
         return
@@ -264,7 +321,7 @@ def handle_message(web: WebClient, payload: dict):
     if channel_name in BACKLOG_CHANNELS:
         result = _classify_task_intent(raw_text)
         if result and result.get("is_task"):
-            from task_store import create_task, add_attachment
+            from task_store import create_task
             task = create_task(
                 title=result.get("title") or parts[0][:80],
                 description=result.get("description", ""),
@@ -292,7 +349,7 @@ def handle_message(web: WebClient, payload: dict):
     # ── Employee channels: classify intent before routing ─────────────────────
     result = _classify_task_intent(raw_text)
     if result and result.get("is_task"):
-        from task_store import create_task, add_attachment
+        from task_store import create_task
         task = create_task(
             title=result.get("title") or raw_text[:80],
             description=result.get("description", ""),
@@ -322,7 +379,11 @@ def handle_message(web: WebClient, payload: dict):
     except Exception:
         pass
 
-    response = call_employee(employee_id, message)
+    result = call_employee_full(employee_id, message, thread_id=f"slack-{channel_id}-{thread_ts}")
+    response = result.get("response", "_(no response)_")
+    if result.get("pending_approval"):
+        _pending_gates[(channel_id, thread_ts)] = (employee_id, result.get("thread_id", thread_ts))
+        response += "\n\n_Reply in this thread with *approve* or *reject* (optionally with feedback)._"
 
     # Remove thinking reaction and post reply in thread
     try:

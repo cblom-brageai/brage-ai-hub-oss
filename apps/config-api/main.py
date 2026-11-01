@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Brage Config API", lifespan=lifespan)
+app = FastAPI(title="Config API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -226,7 +226,7 @@ def delegate_task(task_id: str):
 
 @app.post("/tasks/{task_id}/complete")
 def complete_task(task_id: str):
-    from task_store import get_task, update_task
+    from task_store import get_task
     task = get_task(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
@@ -277,7 +277,7 @@ def _run_delegated_task(task: dict):
     message = "\n".join(filter(None, parts))
 
     try:
-        response = call_employee(employee_id, message)
+        response = call_employee(employee_id, message, thread_id=f"task-{task_id}")
         _complete_task(task, response)
     except Exception as e:
         logger.error("Delegation failed for task %s: %s", task_id, e)
@@ -526,10 +526,94 @@ def _git_commit(employee_id: str, filepath: str):
         repo = git.Repo(CONFIG_ROOT, search_parent_directories=True)
         repo.index.add([filepath])
         author = git.Actor(
-            os.getenv("GIT_AUTHOR_NAME", "Brage Config API"),
-            os.getenv("GIT_AUTHOR_EMAIL", "config-api@brageai.no"),
+            os.getenv("GIT_AUTHOR_NAME", "Config API"),
+            os.getenv("GIT_AUTHOR_EMAIL", "config-api@example.com"),
         )
         filename = Path(filepath).name
         repo.index.commit(f"Update {filename} for {employee_id}", author=author, committer=author)
     except Exception as e:
         print(f"Git commit failed: {e}")
+
+
+# ── LLM gateway ────────────────────────────────────────────────────────────────
+# Single door for every model call made outside the agents (onboarding chat, template
+# generation, Slack intent classification). Honours PRIVACY_MODE and LangSmith tracing
+# exactly like the agents because it uses the same llm_selector.
+
+class LLMGenerateRequest(BaseModel):
+    prompt: str | None = None
+    system: str | None = None
+    messages: list[dict] | None = None   # [{"role": "user"|"assistant"|"system", "content": "..."}]
+    role: str = "write"                  # "write" or "reason"
+    model: str | None = None             # explicit model id override
+    json_mode: bool = False              # parse the reply as JSON (code fences tolerated)
+    run_name: str | None = None
+    metadata: dict = {}
+
+
+def _content_to_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(
+            b.get("text", "") if isinstance(b, dict) else str(b) for b in content
+        )
+    return str(content)
+
+
+def _strip_code_fence(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("```", 2)[1] if text.count("```") >= 2 else text[3:]
+        if text.lower().startswith("json"):
+            text = text[4:]
+    return text.strip()
+
+
+@app.post("/llm/generate")
+async def llm_generate(req: LLMGenerateRequest):
+    import json as _json
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+    from langchain_core.runnables import RunnableConfig
+    from llm_selector import get_llm
+
+    msgs = []
+    if req.system:
+        msgs.append(SystemMessage(content=req.system))
+    for m in req.messages or []:
+        role, content = m.get("role", "user"), m.get("content", "")
+        if role == "assistant":
+            msgs.append(AIMessage(content=content))
+        elif role == "system":
+            msgs.append(SystemMessage(content=content))
+        else:
+            msgs.append(HumanMessage(content=content))
+    if req.prompt:
+        msgs.append(HumanMessage(content=req.prompt))
+    if not msgs:
+        raise HTTPException(400, "prompt or messages is required")
+
+    try:
+        llm = get_llm(req.model, role=req.role)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    config = RunnableConfig(
+        run_name=req.run_name or "llm-generate",
+        tags=["config-api", req.role],
+        metadata={"source": "config-api", **req.metadata},
+    )
+    try:
+        result = await llm.ainvoke(msgs, config=config)
+    except Exception as e:
+        logger.error("LLM call failed: %s", e)
+        raise HTTPException(502, f"LLM call failed: {e}")
+
+    text = _content_to_text(getattr(result, "content", result))
+    if not req.json_mode:
+        return {"text": text}
+    cleaned = _strip_code_fence(text)
+    try:
+        return {"text": cleaned, "json": _json.loads(cleaned)}
+    except _json.JSONDecodeError:
+        raise HTTPException(502, "The model did not return valid JSON")

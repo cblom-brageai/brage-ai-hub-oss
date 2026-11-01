@@ -1,5 +1,5 @@
 """
-create_task — lets a virtual employee add a task to the Brage AI Hub backlog.
+create_task — lets a virtual employee add a task to the AI Hub backlog.
 
 Use this when asked to PLAN, SCHEDULE, or ORGANISE work into tasks — NOT when
 asked to do the work itself.  Call once per task item.
@@ -20,7 +20,7 @@ def create_task(
     scheduled_at: str = "",
 ) -> str:
     """
-    Create a task in the Brage AI Hub task management system (backlog).
+    Create a task in the AI Hub task management system (backlog).
 
     Use this tool when you are asked to:
     - Break a plan or calendar into tasks
