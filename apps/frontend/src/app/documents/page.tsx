@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   FileText, Plus, X, Search, Trash2, Edit2,
-  ChevronRight, RefreshCw,
+  ChevronRight, RefreshCw, PenLine, LayoutTemplate,
 } from 'lucide-react'
 import { NavHeader } from '@/components/nav-header'
+import { isStructuredTemplate } from '@/lib/templates/structure'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -136,6 +137,13 @@ function DocumentsTab({
             <option key={e.id} value={e.id}>{e.name}</option>
           ))}
         </select>
+        <Link
+          href="/documents/write"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap"
+        >
+          <PenLine size={14} />
+          Write
+        </Link>
       </div>
 
       {filtered.length === 0 ? (
@@ -186,285 +194,97 @@ function DocumentsTab({
 
 // ── Templates tab ─────────────────────────────────────────────────────────────
 
-interface TemplateFormData {
-  name: string
-  description: string
-  employee_ids: string[]
-  json_schema: string
-}
-
-function TemplateModal({
-  initial,
-  employees,
-  onClose,
-  onSave,
-}: {
-  initial?: Template
-  employees: Employee[]
-  onClose: () => void
-  onSave: (data: TemplateFormData) => Promise<void>
-}) {
-  const [step, setStep] = useState<1 | 2>(initial ? 2 : 1)
-  const [prompt, setPrompt] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [generateError, setGenerateError] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const [name, setName] = useState(initial?.name ?? '')
-  const [description, setDescription] = useState(initial?.description ?? '')
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>(initial?.employee_ids ?? [])
-  const [schemaText, setSchemaText] = useState(
-    initial ? JSON.stringify(initial.json_schema, null, 2) : ''
-  )
-
-  async function handleGenerate() {
-    if (!prompt.trim()) return
-    setGenerating(true)
-    setGenerateError('')
-    try {
-      const res = await fetch('/api/templates/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Generation failed')
-      setName(data.name ?? '')
-      setDescription(data.description ?? '')
-      setSchemaText(JSON.stringify(data.json_schema ?? {}, null, 2))
-      setStep(2)
-    } catch (e: unknown) {
-      setGenerateError(e instanceof Error ? e.message : 'Failed to generate')
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    try {
-      let parsed: Record<string, unknown> = {}
-      try { parsed = JSON.parse(schemaText) } catch { parsed = {} }
-      await onSave({ name, description, employee_ids: selectedEmployees, json_schema: schemaText })
-      onClose()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function toggleEmployee(id: string) {
-    setSelectedEmployees((prev) =>
-      prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]
-    )
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[rgb(var(--background))] border border-[rgb(var(--border))] rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="font-semibold text-base">
-            {initial ? 'Edit Template' : step === 1 ? 'New Template — Step 1' : 'New Template — Step 2'}
-          </h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-[rgb(var(--muted))] transition-colors">
-            <X size={16} />
-          </button>
-        </div>
-
-        {step === 1 && (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-[rgb(var(--muted-foreground))]">
-              Describe the document type and we&apos;ll generate a JSON Schema for it.
-            </p>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. PRINCE2 Project Initiation Document for solar PV installations"
-              rows={4}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--muted))] focus:outline-none focus:border-[rgb(var(--primary))] transition-colors resize-none"
-            />
-            {generateError && (
-              <p className="text-xs text-red-500">{generateError}</p>
-            )}
-            <div className="flex gap-2">
-              <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--primary))] transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={handleGenerate}
-                disabled={!prompt.trim() || generating}
-                className="flex-1 px-4 py-2 text-sm rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] hover:opacity-90 transition-opacity disabled:opacity-40"
-              >
-                {generating ? 'Generating…' : 'Generate'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="text-xs font-medium text-[rgb(var(--muted-foreground))] mb-1 block">
-                Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--muted))] focus:outline-none focus:border-[rgb(var(--primary))] transition-colors"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[rgb(var(--muted-foreground))] mb-1 block">Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--muted))] focus:outline-none focus:border-[rgb(var(--primary))] transition-colors resize-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[rgb(var(--muted-foreground))] mb-2 block">
-                Assign to employees
-              </label>
-              <div className="flex flex-col gap-1">
-                {employees.map((emp) => (
-                  <label key={emp.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedEmployees.includes(emp.id)}
-                      onChange={() => toggleEmployee(emp.id)}
-                      className="rounded"
-                    />
-                    {emp.name}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[rgb(var(--muted-foreground))] mb-1 block">
-                JSON Schema
-              </label>
-              <textarea
-                value={schemaText}
-                onChange={(e) => setSchemaText(e.target.value)}
-                rows={8}
-                className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--muted))] focus:outline-none focus:border-[rgb(var(--primary))] transition-colors resize-none"
-              />
-            </div>
-            <div className="flex gap-2">
-              {!initial && (
-                <button
-                  onClick={() => setStep(1)}
-                  className="px-4 py-2 text-sm rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--primary))] transition-colors"
-                >
-                  Back
-                </button>
-              )}
-              <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--primary))] transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={!name.trim() || saving}
-                className="flex-1 px-4 py-2 text-sm rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] hover:opacity-90 transition-opacity disabled:opacity-40"
-              >
-                {saving ? 'Saving…' : 'Save Template'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function TemplatesTab({
   templates,
-  employees,
   onRefresh,
 }: {
   templates: Template[]
-  employees: Employee[]
   onRefresh: () => void
 }) {
-  const [showCreate, setShowCreate] = useState(false)
-  const [editTemplate, setEditTemplate] = useState<Template | null>(null)
-
-  async function handleCreate(data: TemplateFormData) {
-    let parsed: Record<string, unknown> = {}
-    try { parsed = JSON.parse(data.json_schema) } catch { parsed = {} }
-    await fetch('/api/templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, json_schema: parsed }),
-    })
-    onRefresh()
-  }
-
-  async function handleEdit(data: TemplateFormData) {
-    if (!editTemplate) return
-    let parsed: Record<string, unknown> = {}
-    try { parsed = JSON.parse(data.json_schema) } catch { parsed = {} }
-    await fetch(`/api/templates/${editTemplate.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, json_schema: parsed }),
-    })
-    onRefresh()
-  }
-
   async function handleDelete(id: string) {
+    if (!confirm('Delete this template? Documents written from it keep their content.')) return
     await fetch(`/api/templates/${id}`, { method: 'DELETE' })
     onRefresh()
   }
 
   return (
     <div>
-      <div className="flex justify-end mb-6">
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus size={14} />
-          New Template
-        </button>
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+        <p className="text-sm text-[rgb(var(--muted-foreground))]">
+          Templates define a document as sections of typed fields. Employees use them when a task carries a template; people fill them in the writer.
+        </p>
+        <div className="flex gap-2">
+          <Link
+            href="/documents/write"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[rgb(var(--border))] text-sm font-medium hover:border-[rgb(var(--primary))] transition-colors"
+          >
+            <PenLine size={14} />
+            Write document
+          </Link>
+          <Link
+            href="/documents/studio"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            <Plus size={14} />
+            New template
+          </Link>
+        </div>
       </div>
 
       {templates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-[rgb(var(--muted-foreground))]">
-          <FileText size={40} className="mb-3 opacity-30" />
-          <p className="text-sm">No templates yet</p>
+          <LayoutTemplate size={40} className="mb-3 opacity-30" />
+          <p className="text-sm mb-2">No templates yet</p>
+          <Link href="/documents/studio" className="text-sm text-[rgb(var(--primary))] hover:underline">Open the Template Studio</Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {templates.map((tmpl) => (
-            <div
-              key={tmpl.id}
-              className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-4"
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="text-sm font-semibold">{tmpl.name}</h3>
-                <div className="flex gap-1 shrink-0">
-                  <button
-                    onClick={() => setEditTemplate(tmpl)}
-                    className="p-1 rounded hover:bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
-                  >
-                    <Edit2 size={13} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(tmpl.id)}
-                    className="p-1 rounded hover:bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground))] hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+          {templates.map((tmpl) => {
+            const structured = isStructuredTemplate(tmpl.json_schema)
+            const sections = structured ? (tmpl.json_schema as { sections: { fields?: unknown[] }[] }).sections : []
+            const fieldCount = sections.reduce((n, sec) => n + (sec.fields?.length ?? 0), 0)
+            return (
+              <div
+                key={tmpl.id}
+                className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-4"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className="text-sm font-semibold">{tmpl.name}</h3>
+                  <div className="flex gap-1 shrink-0">
+                    {structured && (
+                      <Link
+                        href={`/documents/write?template=${tmpl.id}`}
+                        title="Write a document from this template"
+                        className="p-1 rounded hover:bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
+                      >
+                        <PenLine size={13} />
+                      </Link>
+                    )}
+                    <Link
+                      href={`/documents/studio/${tmpl.id}`}
+                      title="Edit in the Template Studio"
+                      className="p-1 rounded hover:bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
+                    >
+                      <Edit2 size={13} />
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(tmpl.id)}
+                      title="Delete template"
+                      className="p-1 rounded hover:bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground))] hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              {tmpl.description && (
-                <p className="text-xs text-[rgb(var(--muted-foreground))] mb-3 line-clamp-2">
-                  {tmpl.description}
-                </p>
-              )}
-              {tmpl.employee_ids.length > 0 && (
+                {tmpl.description && (
+                  <p className="text-xs text-[rgb(var(--muted-foreground))] mb-3 line-clamp-2">
+                    {tmpl.description}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-1">
+                  <span className="px-1.5 py-0.5 text-xs rounded-full bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground))]">
+                    {structured ? `${sections.length} sections · ${fieldCount} fields` : 'raw JSON schema'}
+                  </span>
                   {tmpl.employee_ids.map((eid) => (
                     <span
                       key={eid}
@@ -474,26 +294,10 @@ function TemplatesTab({
                     </span>
                   ))}
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            )
+          })}
         </div>
-      )}
-
-      {showCreate && (
-        <TemplateModal
-          employees={employees}
-          onClose={() => setShowCreate(false)}
-          onSave={handleCreate}
-        />
-      )}
-      {editTemplate && (
-        <TemplateModal
-          initial={editTemplate}
-          employees={employees}
-          onClose={() => setEditTemplate(null)}
-          onSave={handleEdit}
-        />
       )}
     </div>
   )
@@ -963,7 +767,6 @@ export default function DocumentsPage() {
         {activeTab === 'templates' && (
           <TemplatesTab
             templates={templates}
-            employees={employees}
             onRefresh={() => fetch('/api/templates').then((r) => r.json()).then(setTemplates).catch(() => {})}
           />
         )}

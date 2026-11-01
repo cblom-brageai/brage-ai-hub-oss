@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle, PenLine } from 'lucide-react'
 import { NavHeader } from '@/components/nav-header'
 import MarkdownIt from 'markdown-it'
 
@@ -214,6 +214,14 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
         </div>
 
         <div className="flex items-center gap-2">
+          {artefact.template_id && artefact.metadata?.form ? (
+            <Link
+              href={`/documents/write?artefact=${artefact.id}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--primary))] transition-colors"
+            >
+              <PenLine size={13} /> Edit in form
+            </Link>
+          ) : null}
           <div className="flex rounded-lg border border-[rgb(var(--border))] overflow-hidden">
             {(['preview', 'edit'] as const).map((m) => (
               <button

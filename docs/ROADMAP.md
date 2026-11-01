@@ -20,12 +20,12 @@ What we know is missing or planned. Pick something and open an issue before star
 
 ## Modules ported from earlier versions
 
-- **Documentation Hub.** A visual template studio (sections and typed fields, drag-and-drop, live preview, model-generated templates) and a form-driven document writer on top of the existing `document_templates` schema.
 - **Privacy mode, completed.** Per-employee privacy flag, Ollama model discovery and a provider selector in the UI, local embeddings once the knowledge pipeline exists.
 - **Voice interview.** A voice agent (ElevenLabs Conversational AI or Web Speech API) that interviews the user section by section and fills a template-driven document through client tools.
 
 ## Done recently
 
+- Documentation Hub: Template Studio (sections and typed fields, JSON view, live preview, model-generated templates) and the form-based document writer that saves artefacts with their form data.
 - Multi-turn conversations with thread ids and a working human approval gate (chat and Slack).
 - Single LLM gateway for all non-agent model calls; provider-agnostic selector in every service.
 - Per-meeting run tags for tracing; tracing opt-in by default.

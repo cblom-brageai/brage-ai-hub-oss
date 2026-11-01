@@ -21,7 +21,8 @@ Brage AI Hub: a Turborepo-style monorepo (no root install) with five apps.
 5. **Deliverables go to Supabase, not the virtual filesystem.** Agents are told to call `store_result`; `write_file` is scratch space. Tasks are created with `create_task`.
 6. **No secrets, project ids or company data in the repo.** Use `.env` (ignored) and `.env.example` (placeholders). Example employees under `docker/employees/` are deliberately generic enough to publish.
 7. **Dependencies are pinned.** Edit `requirements.in`, then regenerate `requirements.txt` (see CONTRIBUTING.md). Node apps use `pnpm` with lockfiles; run `pnpm install --frozen-lockfile`.
-8. **After a code change, restart the affected service** so the running stack reflects it: `cd docker && make rebuild-<service>` or `make up`. The frontend dev server hot-reloads.
+8. **Templates are sections of typed fields.** The canonical structure, its validation and the Markdown renderer live in `apps/frontend/src/lib/templates/` (unit-tested with Vitest). The Studio, the writer and the task-delegation prompt all use it; do not introduce a second template format.
+9. **After a code change, restart the affected service** so the running stack reflects it: `cd docker && make rebuild-<service>` or `make up`. The frontend dev server hot-reloads.
 
 ## Key commands
 

@@ -88,7 +88,8 @@ Everything below is implemented in this repository; file references point at the
 `apps/frontend/src/app/documents/`, `apps/config-api/publishers/`, migrations `001`, `004`, `005`, `006`.
 
 - **Artefacts** are everything employees produce: Markdown with a title, filename, source, optional metadata JSON, template link and schema version, stored in Supabase and searchable with Postgres full-text search. The Documents page lists them, renders the Markdown, lets you edit and save, and publishes them.
-- **Templates** are JSON Schemas (`document_templates.json_schema`) that describe a document type. Describe the document in a sentence and the hub generates the schema through the LLM gateway; assign a template to employees; attach it to a task so the employee produces structured output.
+- **Templates** describe a document type as sections of typed fields (text, long text, number, date, dropdown, checklist, list, person), stored in `document_templates.json_schema`. The **Template Studio** (`/documents/studio`) is a visual builder with a JSON view and a live preview; describe the document in a sentence and the hub drafts the sections and fields through the LLM gateway. Assign a template to employees and attach it to a task so the employee produces structured output.
+- **Document writer** (`/documents/write`): pick a template, fill in the form with a live Markdown preview, and save it as an artefact on behalf of an employee or the hub user. The form data is kept with the artefact so the document reopens in the form later. Details in [docs/documentation-hub.md](docs/documentation-hub.md).
 - **Publish channels** are configured in the UI with per-channel settings and a list of employees allowed to use them: **LinkedIn** (UGC post), **HubSpot** (CMS blog post), **Slack** (formatted message) and **Word to Slack** (a `.docx` generated from the Markdown and uploaded to a channel).
 - **Publish rules** bind an employee to a channel with a trigger: `approved` publishes automatically when a task is approved, `manual` publishes from the document page. Every attempt is recorded in `publish_logs` with status and error.
 
@@ -220,6 +221,7 @@ Everything is driven by `.env` ([.env.example](.env.example)). The important var
 |---|---|
 | An employee | Copy `docs/employee-template/` to `docker/employees/<id>/config/`, add a service block to `docker/docker-compose.local.yml` (same anchors; new id, port, Slack channel), add its URL to `x-employee-urls` and the channel to `SLACK_CHANNEL_ROUTING`. Or let the onboarding assistant write the files. |
 | Tools for an employee | Run any MCP server and list it under `[mcp_servers]` in that employee's `agent.config.md`. |
+| A field type for templates | Add it to `FieldType` and `FIELD_TYPES` in `apps/frontend/src/lib/templates/types.ts`, render it in `components/document-form/dynamic-field.tsx`, and teach `renderMarkdown` in `lib/templates/structure.ts` how to print it. |
 | A publish channel type | Add a module under `apps/config-api/publishers/`, a branch in `dispatcher.py`, and the type to the `CHECK` constraint in migration `006`. |
 | A meeting agent | A class in `apps/meeting-agent/agent/agents/`, wired into `MeetingSession`, plus a config folder under `docker/meetings/agents/`. |
 | Another task backend | Implement `TaskProvider` (`apps/frontend/src/lib/tasks/types.ts`) and the matching functions in `apps/config-api/task_store.py`. |
@@ -257,11 +259,12 @@ pnpm lint && pnpm typecheck && pnpm build
 cd apps/chrome-extension && pnpm install --frozen-lockfile && pnpm dev   # rebuilds dist/ on change
 ```
 
-Dependencies are pinned (`requirements.txt`, `pnpm-lock.yaml`); [CONTRIBUTING.md](CONTRIBUTING.md) explains how to update them. The unit tests run without any LLM or database: the employee server is tested against a small LangGraph graph with an interrupt, and the LLM gateway against a fake chat model. [CLAUDE.md](CLAUDE.md) lists the conventions that AI coding assistants and humans should follow here.
+Dependencies are pinned (`requirements.txt`, `pnpm-lock.yaml`); [CONTRIBUTING.md](CONTRIBUTING.md) explains how to update them. The unit tests run without any LLM or database: the employee server is tested against a small LangGraph graph with an interrupt, the LLM gateway against a fake chat model, and the template helpers with Vitest (`pnpm test` in `apps/frontend`). [CLAUDE.md](CLAUDE.md) lists the conventions that AI coding assistants and humans should follow here.
 
 ## Documentation
 
 - [docs/employees.md](docs/employees.md): configuration files, tools, Slack, adding an employee
+- [docs/documentation-hub.md](docs/documentation-hub.md): the template structure, the Template Studio and the document writer
 - [docs/meeting-extension.md](docs/meeting-extension.md): building, loading and using the meeting assistant
 - [docs/privacy-mode.md](docs/privacy-mode.md): model selection, local models and data boundaries
 - [docs/observability.md](docs/observability.md): tracing, run tags, the usage dashboard, conversation state

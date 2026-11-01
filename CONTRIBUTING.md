@@ -20,7 +20,7 @@ ruff check . && pytest -q
 
 # Frontend
 cd apps/frontend && pnpm install --frozen-lockfile
-pnpm lint && pnpm typecheck && pnpm build
+pnpm lint && pnpm typecheck && pnpm test && pnpm build
 
 # Chrome extension
 cd apps/chrome-extension && pnpm install --frozen-lockfile
@@ -44,7 +44,7 @@ Commit both files. Node dependencies use `pnpm`; commit the updated `pnpm-lock.y
 ## Pull requests
 
 - Branch from `main`, keep the change focused, and fill in the pull request template.
-- CI must pass: lint, typecheck and build for the Node apps; `ruff` and `pytest` for the Python apps.
+- CI must pass: lint, typecheck, unit tests and build for the frontend, typecheck and build for the extension; `ruff` and `pytest` for the Python apps.
 - Do not commit `.env`, credentials, project identifiers or customer data. The example employees and prompts must stay publishable.
 - Update the docs that describe the behaviour you changed (README, `docs/`, `CLAUDE.md`).
 - Commit messages follow the existing style: `feat:`, `fix:`, `docs:`, `chore:` prefixes with a short imperative summary.

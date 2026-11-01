@@ -268,10 +268,13 @@ def _run_delegated_task(task: dict):
         if tmpl:
             import json as _json
             parts.append(
-                f"\n**Document Template:** Use the following JSON Schema as the structure for your output document.\n"
+                f"\n**Document Template:** Produce the document following this template (sections with typed fields, as JSON).\n"
                 f"Template: {tmpl['name']}\n"
-                f"Schema: {_json.dumps(tmpl['json_schema'], indent=2)}\n"
-                f"When calling store_result, pass template_id='{template_id}' and a metadata JSON string matching the schema fields."
+                f"Structure: {_json.dumps(tmpl['json_schema'], indent=2)}\n"
+                "Write the document in Markdown: one '## <section title>' per section and one '**<field label>**' "
+                "paragraph per field, in the given order; render list fields as bullet lists and checklist fields as task lists.\n"
+                f"When calling store_result, pass template_id='{template_id}' and metadata as a JSON string of the form "
+                '{"form": {"data": {"<section id>": {"<field key>": <value>}}}} so the hub can open the document in its form editor.'
             )
 
     message = "\n".join(filter(None, parts))
