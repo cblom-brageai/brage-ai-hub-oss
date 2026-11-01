@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+dist/
+build/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python virtual environments
+.venv/
+venv/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+*.swp
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Artefacts (written by Deep Agents)
+apps/employee-agent/config/artefacts/
+
+# TypeScript incremental build info
+*.tsbuildinfo

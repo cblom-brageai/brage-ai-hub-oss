@@ -1,0 +1,45 @@
+# Cloud Run deployment — each service is deployed separately by the GitHub Actions
+# workflow (.github/workflows/deploy-cloud-run.yml). This file only exists for local
+# integration testing of the cloud configuration (no Docker socket, git-backed configs).
+name: brage_ai_hub_cloud
+
+services:
+  employee-marketing-manager:
+    build:
+      context: ../apps/employee-agent
+    container_name: employee-marketing-manager
+    ports: ["8000:8000"]
+    volumes:
+      - ./employees/marketing-manager/config:/app/config
+    environment:
+      EMPLOYEE_ID: marketing-manager
+      CONFIG_DIR: /app/config
+      COMPANY_NAME: ${COMPANY_NAME:-Brage AI}
+      DEFAULT_LLM: ${DEFAULT_LLM:-gemini-3-flash-preview}
+      REASONING_LLM: ${REASONING_LLM:-gemini-3.1-pro-preview}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      PRIVACY_MODE: "false"
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
+      LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT:-https://api.smith.langchain.com}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-brage-ai-hub}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+
+  config-api:
+    build:
+      context: ../apps/config-api
+    container_name: config-api
+    ports: ["8090:8090"]
+    volumes:
+      - ./employees:/employees
+    environment:
+      CONFIG_ROOT: /employees
+      GIT_ENABLED: "true"
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-config-api@example.com}
+      DEFAULT_LLM: ${DEFAULT_LLM:-gemini-3-flash-preview}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}

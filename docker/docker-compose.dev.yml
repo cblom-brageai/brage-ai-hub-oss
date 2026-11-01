@@ -1,0 +1,170 @@
+# Optional second stack for working on the meeting app while the main stack keeps running.
+# Three employees, separate network, frontend on port 3001. Same configuration surface as
+# docker-compose.local.yml.
+#
+#   cd docker && make dev-up
+name: brage_ai_hub_dev
+
+x-llm-env: &llm-env
+  DEFAULT_LLM: ${DEFAULT_LLM:-gemini-3-flash-preview}
+  REASONING_LLM: ${REASONING_LLM:-gemini-3.1-pro-preview}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  PRIVACY_MODE: ${PRIVACY_MODE:-false}
+  OLLAMA_BASE_URL: http://dev-ollama:11434
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+  LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
+  LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT:-https://api.smith.langchain.com}
+  LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+  LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-brage-ai-hub-dev}
+
+x-supabase-env: &supabase-env
+  SUPABASE_URL: ${SUPABASE_URL}
+  SUPABASE_KEY: ${SUPABASE_KEY}
+
+x-employee-env: &employee-env
+  <<: [*llm-env, *supabase-env]
+  CONFIG_DIR: /app/config
+  COMPANY_NAME: ${COMPANY_NAME:-Brage AI}
+  SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+
+x-employee: &employee
+  build:
+    context: ../apps/employee-agent
+  depends_on:
+    - dev-config-api
+  restart: unless-stopped
+  networks:
+    - brage-dev
+
+x-employee-urls: &employee-urls
+  MARKETING_MANAGER_URL: http://dev-employee-marketing-manager:8000
+  BID_MANAGER_URL: http://dev-employee-bid-manager:8000
+  PROJECT_MANAGER_URL: http://dev-employee-project-manager:8000
+
+services:
+  dev-employee-marketing-manager:
+    <<: *employee
+    container_name: dev-employee-marketing-manager
+    ports: ["8011:8000"]
+    volumes:
+      - ./employees/marketing-manager/config:/app/config
+    environment:
+      <<: *employee-env
+      EMPLOYEE_ID: marketing-manager
+      SLACK_DEFAULT_CHANNEL: marketing
+
+  dev-employee-bid-manager:
+    <<: *employee
+    container_name: dev-employee-bid-manager
+    ports: ["8012:8000"]
+    volumes:
+      - ./employees/bid-manager/config:/app/config
+    environment:
+      <<: *employee-env
+      EMPLOYEE_ID: bid-manager
+      SLACK_DEFAULT_CHANNEL: tenders
+
+  dev-employee-project-manager:
+    <<: *employee
+    container_name: dev-employee-project-manager
+    ports: ["8013:8000"]
+    volumes:
+      - ./employees/project-manager/config:/app/config
+    environment:
+      <<: *employee-env
+      EMPLOYEE_ID: project-manager
+      SLACK_DEFAULT_CHANNEL: projects
+
+  dev-meeting-agent:
+    build:
+      context: ../apps/meeting-agent
+    container_name: dev-meeting-agent
+    ports: ["8010:8010"]
+    volumes:
+      - ./meetings/agents:/app/agent-configs
+      - ./employees:/employees:ro
+    environment:
+      <<: [*llm-env, *supabase-env]
+      SONIOX_API_KEY: ${SONIOX_API_KEY:-}
+      EMPLOYEE_AGENT_URLS: '{"marketing-manager":"http://dev-employee-marketing-manager:8000","bid-manager":"http://dev-employee-bid-manager:8000","project-manager":"http://dev-employee-project-manager:8000"}'
+      EMPLOYEES_DIR: /employees
+    depends_on:
+      - dev-employee-marketing-manager
+      - dev-employee-bid-manager
+      - dev-employee-project-manager
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-config-api:
+    build:
+      context: ../apps/config-api
+    container_name: dev-config-api
+    ports: ["8091:8090"]
+    volumes:
+      - ./employees:/employees
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      <<: [*llm-env, *supabase-env, *employee-urls]
+      CONFIG_ROOT: /employees
+      GIT_ENABLED: ${GIT_ENABLED:-false}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-config-api@example.com}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:-}
+      DEFAULT_EMPLOYEE: marketing-manager
+      SLACK_CHANNEL_ROUTING: '{"marketing":"marketing-manager","general":"marketing-manager","tenders":"bid-manager","projects":"project-manager"}'
+      SLACK_BACKLOG_CHANNELS: '["backlog"]'
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-frontend:
+    build:
+      context: ../apps/frontend
+    container_name: dev-frontend
+    ports: ["3001:3001"]
+    volumes:
+      - ./employees:/employees
+    environment:
+      <<: [*supabase-env, *employee-urls]
+      PORT: 3001
+      NEXT_PUBLIC_APP_MODE: dev
+      CONFIG_API_URL: http://dev-config-api:8090
+      MEETING_AGENT_URL: http://dev-meeting-agent:8010
+      EMPLOYEES_DIR: /employees
+      EMPLOYEE_ID: marketing-manager
+      COMPANY_NAME: ${COMPANY_NAME:-Brage AI}
+      COMPANY_DESCRIPTION: ${COMPANY_DESCRIPTION:-}
+      SONIOX_API_KEY: ${SONIOX_API_KEY:-}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT:-https://api.smith.langchain.com}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-brage-ai-hub-dev}
+    depends_on:
+      - dev-config-api
+      - dev-meeting-agent
+      - dev-employee-marketing-manager
+      - dev-employee-bid-manager
+      - dev-employee-project-manager
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+  dev-ollama:
+    image: ollama/ollama:latest
+    container_name: dev-ollama
+    profiles: ["privacy"]
+    ports: ["11435:11434"]
+    volumes:
+      - dev_ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - brage-dev
+
+networks:
+  brage-dev:
+    driver: bridge
+
+volumes:
+  dev_ollama_data:

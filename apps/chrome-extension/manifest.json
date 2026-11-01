@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Brage Meeting Assistant",
+  "version": "0.1.0",
+  "description": "AI-assisted meeting transcription and insights for any browser-based meeting.",
+  "permissions": [
+    "sidePanel",
+    "tabCapture",
+    "storage",
+    "tabs",
+    "activeTab",
+    "identity",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "https://stt-rt.eu.soniox.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "Brage Meeting Assistant"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ]
+}
