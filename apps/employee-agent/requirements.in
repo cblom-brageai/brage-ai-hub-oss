@@ -21,4 +21,4 @@ pydantic>=2.7.0
 # Slack (communicate tool)
 slack-sdk>=3.27.0
 # Tracing (optional, enabled with LANGCHAIN_TRACING_V2=true)
-langsmith>=0.2
+langsmith>=0.14.16
