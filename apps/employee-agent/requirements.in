@@ -6,7 +6,7 @@ langgraph>=0.2
 langchain-core>=0.3
 langchain-mcp-adapters>=0.1
 # Model providers (lazy-imported by agent/llm_selector.py)
-langchain-google-genai>=1.0
+langchain-google-genai>=4.4.2
 langchain-anthropic>=0.3
 langchain-openai>=0.3
 langchain-ollama>=0.2
