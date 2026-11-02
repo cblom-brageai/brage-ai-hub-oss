@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  FileText, Plus, X, Search, Trash2, Edit2,
+  AlertCircle, FileText, Plus, X, Search, Trash2, Edit2,
   ChevronRight, RefreshCw, PenLine, LayoutTemplate,
 } from 'lucide-react'
 import { NavHeader } from '@/components/nav-header'
+import { fetchList } from '@/lib/fetch-json'
 import { isStructuredTemplate } from '@/lib/templates/structure'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -708,26 +709,31 @@ export default function DocumentsPage() {
   const [channels, setChannels] = useState<PublishChannel[]>([])
   const [rules, setRules] = useState<PublishRule[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadAll()
   }, [])
 
+  // The API routes answer `{ error }` instead of a list when Supabase is not configured;
+  // fetchList keeps the lists empty in that case and the message is shown above the tabs.
   async function loadAll() {
-    await Promise.all([
-      fetch('/api/employees').then((r) => r.json()).then((data) => {
-        setEmployees(
-          (data as { id: string }[]).map((e) => ({
-            id: e.id,
-            name: employeeName(e.id),
-          }))
-        )
-      }).catch(() => {}),
-      fetch('/api/artefacts').then((r) => r.json()).then(setArtefacts).catch(() => {}),
-      fetch('/api/templates').then((r) => r.json()).then(setTemplates).catch(() => {}),
-      fetch('/api/publish/channels').then((r) => r.json()).then(setChannels).catch(() => {}),
-      fetch('/api/publish/rules').then((r) => r.json()).then(setRules).catch(() => {}),
+    const [employeesRes, artefactsRes, templatesRes, channelsRes, rulesRes] = await Promise.all([
+      fetchList<{ id: string }>('/api/employees'),
+      fetchList<Artefact>('/api/artefacts'),
+      fetchList<Template>('/api/templates'),
+      fetchList<PublishChannel>('/api/publish/channels'),
+      fetchList<PublishRule>('/api/publish/rules'),
     ])
+    setEmployees(employeesRes.items.map((e) => ({ id: e.id, name: employeeName(e.id) })))
+    setArtefacts(artefactsRes.items)
+    setTemplates(templatesRes.items)
+    setChannels(channelsRes.items)
+    setRules(rulesRes.items)
+    const errors = [employeesRes, artefactsRes, templatesRes, channelsRes, rulesRes]
+      .map((r) => r.error)
+      .filter((e): e is string => Boolean(e))
+    setLoadError(Array.from(new Set(errors)).join(' · '))
   }
 
   const TABS: { key: Tab; label: string }[] = [
@@ -761,13 +767,18 @@ export default function DocumentsPage() {
 
       {/* Content */}
       <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
+        {loadError && (
+          <div className="mb-6 flex items-start gap-2 text-xs rounded-lg border border-red-300 bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-200 dark:border-red-700 p-3">
+            <AlertCircle size={14} className="mt-0.5 shrink-0" /> Failed to load: {loadError}
+          </div>
+        )}
         {activeTab === 'documents' && (
           <DocumentsTab artefacts={artefacts} employees={employees} />
         )}
         {activeTab === 'templates' && (
           <TemplatesTab
             templates={templates}
-            onRefresh={() => fetch('/api/templates').then((r) => r.json()).then(setTemplates).catch(() => {})}
+            onRefresh={loadAll}
           />
         )}
         {activeTab === 'publishers' && (
