@@ -6,18 +6,24 @@ updates:
     directory: /apps/employee-agent
     schedule: { interval: weekly }
     open-pull-requests-limit: 3
+    # Update only the pinned requirements.txt; leave the version ranges in requirements-dev.txt alone
+    versioning-strategy: lockfile-only
     groups:
       minor-and-patch: { update-types: [minor, patch] }
   - package-ecosystem: pip
     directory: /apps/config-api
     schedule: { interval: weekly }
     open-pull-requests-limit: 3
+    # Update only the pinned requirements.txt; leave the version ranges in requirements-dev.txt alone
+    versioning-strategy: lockfile-only
     groups:
       minor-and-patch: { update-types: [minor, patch] }
   - package-ecosystem: pip
     directory: /apps/meeting-agent
     schedule: { interval: weekly }
     open-pull-requests-limit: 3
+    # Update only the pinned requirements.txt; leave the version ranges in requirements-dev.txt alone
+    versioning-strategy: lockfile-only
     groups:
       minor-and-patch: { update-types: [minor, patch] }
   - package-ecosystem: npm
