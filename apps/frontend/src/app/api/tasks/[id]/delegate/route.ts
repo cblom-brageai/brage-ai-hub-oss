@@ -3,7 +3,8 @@ import { supabaseTaskProvider } from '@/lib/tasks/supabase-adapter'
 
 const CONFIG_API = process.env.CONFIG_API_URL ?? 'http://localhost:8090'
 
-export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   const task = await supabaseTaskProvider.get(params.id)
   if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (!task.assigned_to) {
