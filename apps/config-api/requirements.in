@@ -1,5 +1,6 @@
 # Runtime dependencies for the config API.
 # Pinned versions live in requirements.txt (generated with `uv pip compile`, see CONTRIBUTING.md).
+# Development tools are listed as ranges in requirements-dev.txt.
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 python-dotenv>=1.0.0
