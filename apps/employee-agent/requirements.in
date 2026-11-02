@@ -1,5 +1,6 @@
 # Runtime dependencies for the employee agent.
 # Pinned versions live in requirements.txt (generated with `uv pip compile`, see CONTRIBUTING.md).
+# Development tools are listed as ranges in requirements-dev.txt.
 # Agent runtime
 deepagents>=0.1
 langgraph>=0.2

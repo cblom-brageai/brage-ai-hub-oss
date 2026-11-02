@@ -160,7 +160,7 @@ export function useSoniox({ meetingId, languageHints, onUtterance }: UseSonioxOp
       if (!stored.captureTabId) {
         throw new Error('Close the panel, go to your meeting tab, then click the Brage toolbar icon to reopen it.')
       }
-      captureTabId = stored.captureTabId
+      captureTabId = Number(stored.captureTabId)
 
       const streamId = await new Promise<string>((resolve, reject) => {
         chrome.tabCapture.getMediaStreamId({ targetTabId: captureTabId }, (id) => {

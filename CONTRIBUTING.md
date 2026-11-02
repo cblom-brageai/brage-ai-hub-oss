@@ -36,10 +36,9 @@ Python dependencies are declared in `requirements.in` and pinned in `requirement
 ```bash
 cd apps/<app>
 uv pip compile requirements.in -o requirements.txt --universal --python-version 3.11
-uv pip compile requirements-dev.in -o requirements-dev.txt --universal --python-version 3.11 --constraint requirements.txt
 ```
 
-Commit both files. Node dependencies use `pnpm`; commit the updated `pnpm-lock.yaml`.
+Commit `requirements.in` and `requirements.txt`. `requirements-dev.txt` holds the test and lint tools as version ranges on purpose: the runtime lock is the single source of pins and pip resolves both files together. Node dependencies use `pnpm`; commit the updated `pnpm-lock.yaml`.
 
 ## Pull requests
 
