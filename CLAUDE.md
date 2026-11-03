@@ -9,7 +9,7 @@ Brage AI Hub: a Turborepo-style monorepo (no root install) with five apps.
 - `apps/employee-agent` — Python. One container per virtual employee. `agent/graph.py` builds a Deep Agents agent (LangGraph) from the mounted `/app/config`; `mcp_server/server.py` exposes `/chat`, `/task`, `/resume`, `/health`.
 - `apps/config-api` — Python FastAPI. Reads/writes employee config files and reloads containers (SIGHUP over the Docker socket), routes Slack (Socket Mode), stores tasks, runs the scheduler, publishes artefacts, and serves `POST /llm/generate`, the single LLM gateway for non-agent calls.
 - `apps/meeting-agent` — Python FastAPI. One `MeetingSession` per active meeting; fans every finalized utterance out to `decision-logger`, `qa-agent`, `meetings-monitor` and to employees addressed by name.
-- `apps/frontend` — Next.js 14 App Router. Hub UI and API routes. Dark teal theme with light/dark toggle.
+- `apps/frontend` — Next.js 15 App Router on React 19 (`params` and `searchParams` are Promises; `await` them, or `use()` them in client components). Hub UI and API routes. Dark teal theme with light/dark toggle.
 - `apps/chrome-extension` — Manifest V3 side panel. Captures tab + mic audio, streams to Soniox, posts utterances to the hub, subscribes to Supabase Realtime.
 
 ## Conventions that matter

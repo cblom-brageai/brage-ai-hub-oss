@@ -156,7 +156,7 @@ LangSmith tracing is a configuration switch, off by default. Runs are tagged per
 | `apps/employee-agent` | Python, Deep Agents, LangGraph, FastAPI | One instance per employee. Builds the agent from the mounted config; `/chat`, `/task`, `/resume`. |
 | `apps/config-api` | Python, FastAPI | Config files and live reload, Slack router, task store, scheduler, publishers, LLM gateway. |
 | `apps/meeting-agent` | Python, FastAPI, LangChain | One session per active meeting; fans utterances out to meeting agents and invited employees. |
-| `apps/frontend` | Next.js 14, Tailwind | The hub UI and its API routes. |
+| `apps/frontend` | Next.js 15, React 19, Tailwind | The hub UI and its API routes. |
 | `apps/chrome-extension` | Vite, React, Manifest V3 | Side panel for meetings. |
 | `supabase/migrations` | SQL | Artefacts, tasks, attachments, templates, publishing, meetings. |
 
@@ -258,6 +258,8 @@ pnpm lint && pnpm typecheck && pnpm build
 # Chrome extension
 cd apps/chrome-extension && pnpm install --frozen-lockfile && pnpm dev   # rebuilds dist/ on change
 ```
+
+The frontend is a Next.js 15 App Router app and requires React 19 (both pinned in `apps/frontend/package.json`) and Node.js 18.18 or newer; CI and the Docker image use Node 20. In Next 15, `params` and `searchParams` are Promises in pages, layouts and route handlers (`await` them, or `use()` them in client components), and `fetch` in server code and `GET` route handlers is uncached unless you opt in.
 
 Dependencies are pinned (`requirements.txt`, `pnpm-lock.yaml`); [CONTRIBUTING.md](CONTRIBUTING.md) explains how to update them. The unit tests run without any LLM or database: the employee server is tested against a small LangGraph graph with an interrupt, the LLM gateway against a fake chat model, and the template helpers with Vitest (`pnpm test` in `apps/frontend`). [CLAUDE.md](CLAUDE.md) lists the conventions that AI coding assistants and humans should follow here.
 

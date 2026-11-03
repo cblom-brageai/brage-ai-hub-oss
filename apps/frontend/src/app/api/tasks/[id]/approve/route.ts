@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseTaskProvider } from '@/lib/tasks/supabase-adapter'
 
-export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   try {
     // Call config-api which handles status update + auto-publish
     const configApiUrl = process.env.CONFIG_API_URL || 'http://localhost:8090'

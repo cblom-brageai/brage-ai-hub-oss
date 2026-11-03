@@ -3,7 +3,8 @@ import { ChatPanel } from '@/components/chat-panel'
 import Link from 'next/link'
 import { ArrowLeft, Settings } from 'lucide-react'
 
-export default function EmployeePage({ params }: { params: { id: string } }) {
+export default async function EmployeePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   const name = params.id
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
