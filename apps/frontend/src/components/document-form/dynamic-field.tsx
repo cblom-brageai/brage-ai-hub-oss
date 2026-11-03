@@ -1,5 +1,6 @@
 'use client'
 
+import type { JSX } from 'react'
 import { Plus, X } from 'lucide-react'
 import type { FieldValue, TemplateField } from '@/lib/templates/types'
 

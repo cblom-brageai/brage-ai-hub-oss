@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const MEETING_AGENT_URL = process.env.MEETING_AGENT_URL || 'http://localhost:8010'
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   try {
     const res = await fetch(`${MEETING_AGENT_URL}/meetings/${params.id}/end`, {
       method: 'POST',

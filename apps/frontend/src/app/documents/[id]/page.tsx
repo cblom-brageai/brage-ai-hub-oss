@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle, PenLine } from 'lucide-react'
 import { NavHeader } from '@/components/nav-header'
@@ -75,7 +75,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function DocumentDetailPage({ params }: { params: { id: string } }) {
+export default function DocumentDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = use(props.params)
   const [artefact, setArtefact] = useState<Artefact | null>(null)
   const [channels, setChannels] = useState<PublishChannel[]>([])
   const [publishLogs, setPublishLogs] = useState<PublishLog[]>([])

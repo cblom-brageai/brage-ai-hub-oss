@@ -7,7 +7,8 @@ const MEETING_AGENT_URL = process.env.MEETING_AGENT_URL || 'http://localhost:801
  * meeting-agent Q&A agent. The answer will appear via Supabase Realtime
  * on the meeting_qa_pairs table.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   try {
     const body = await req.json()
     const res = await fetch(`${MEETING_AGENT_URL}/meetings/${params.id}/chat`, {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense, use } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ArrowLeft, Save, RefreshCw, Plus, Trash2 } from 'lucide-react'
@@ -279,7 +279,8 @@ function ConfigContent({ params }: { params: { id: string } }) {
   )
 }
 
-export default function ConfigPage({ params }: { params: { id: string } }) {
+export default function ConfigPage(props: { params: Promise<{ id: string }> }) {
+  const params = use(props.params)
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-[rgb(var(--muted-foreground))]">Loading…</div>}>
       <ConfigContent params={params} />

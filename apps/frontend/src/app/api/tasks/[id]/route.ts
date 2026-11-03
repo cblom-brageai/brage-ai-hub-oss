@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseTaskProvider } from '@/lib/tasks/supabase-adapter'
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   const task = await supabaseTaskProvider.get(params.id)
   if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(task)
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   try {
     const body = await req.json()
     const task = await supabaseTaskProvider.update(params.id, body)
@@ -17,7 +19,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   try {
     await supabaseTaskProvider.remove(params.id)
     return new NextResponse(null, { status: 204 })

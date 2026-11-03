@@ -10,7 +10,8 @@ const MEETING_AGENT_URL = process.env.MEETING_AGENT_URL || 'http://localhost:801
  * which triggers Supabase Realtime directly to the extension — so the
  * transcript feed does not depend on this response.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   try {
     const body = await req.json()
     const res = await fetch(`${MEETING_AGENT_URL}/meetings/${params.id}/utterance`, {
