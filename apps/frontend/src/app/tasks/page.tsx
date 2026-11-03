@@ -7,6 +7,7 @@ import {
   CheckSquare, Paperclip, Upload,
 } from 'lucide-react'
 import { NavHeader } from '@/components/nav-header'
+import { fetchList } from '@/lib/fetch-json'
 import type { Task, TaskStatus } from '@/lib/tasks/types'
 
 interface Attachment {
@@ -317,14 +318,15 @@ function TaskForm({
 
 function AttachmentsPanel({ taskId }: { taskId: string }) {
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [loadError, setLoadError] = useState('')
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    fetch(`/api/tasks/${taskId}/attachments`)
-      .then((r) => r.json())
-      .then(setAttachments)
-      .catch(() => {})
+    fetchList<Attachment>(`/api/tasks/${taskId}/attachments`).then(({ items, error }) => {
+      setAttachments(items)
+      setLoadError(error ?? '')
+    })
   }, [taskId])
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -370,6 +372,7 @@ function AttachmentsPanel({ taskId }: { taskId: string }) {
           onChange={handleUpload}
         />
       </div>
+      {loadError && <p className="text-xs text-red-600 dark:text-red-400 mb-1">{loadError}</p>}
       {attachments.length === 0 ? (
         <p className="text-xs text-[rgb(var(--muted-foreground))] opacity-60">
           No attachments — upload a PDF or text file
@@ -622,10 +625,7 @@ export default function TasksPage() {
     if (tasks.length === 0) return
     Promise.all(
       tasks.map((t) =>
-        fetch(`/api/tasks/${t.id}/attachments`)
-          .then((r) => r.json())
-          .then((atts: Attachment[]) => [t.id, atts.length] as [string, number])
-          .catch(() => [t.id, 0] as [string, number])
+        fetchList<Attachment>(`/api/tasks/${t.id}/attachments`).then(({ items }) => [t.id, items.length] as [string, number])
       )
     ).then((entries) => setAttachmentCounts(Object.fromEntries(entries)))
   }, [tasks.length])

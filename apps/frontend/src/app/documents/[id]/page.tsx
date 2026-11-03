@@ -2,8 +2,9 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle, PenLine } from 'lucide-react'
+import { AlertCircle, ArrowLeft, CheckCircle, PenLine } from 'lucide-react'
 import { NavHeader } from '@/components/nav-header'
+import { fetchJson, fetchList } from '@/lib/fetch-json'
 import MarkdownIt from 'markdown-it'
 
 const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
@@ -60,6 +61,10 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' } as Intl.DateTimeFormatOptions)
 }
 
+function isArtefact(json: unknown): json is Artefact {
+  return typeof json === 'object' && json !== null && typeof (json as { id?: unknown }).id === 'string'
+}
+
 const TYPE_LABEL: Record<string, string> = {
   linkedin: 'LinkedIn',
   hubspot: 'HubSpot',
@@ -81,6 +86,7 @@ export default function DocumentDetailPage(props: { params: Promise<{ id: string
   const [channels, setChannels] = useState<PublishChannel[]>([])
   const [publishLogs, setPublishLogs] = useState<PublishLog[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   // Edit mode state
   const [mode, setMode] = useState<'preview' | 'edit'>('preview')
@@ -98,19 +104,28 @@ export default function DocumentDetailPage(props: { params: Promise<{ id: string
     loadData()
   }, [params.id])
 
+  // The API routes answer `{ error }` instead of the record or list when Supabase is not
+  // configured or the document does not exist; the helpers keep the state empty in that
+  // case and the message is shown on the page instead of crashing the render.
   async function loadData() {
     setLoading(true)
-    await Promise.all([
-      fetch(`/api/artefacts/${params.id}`).then((r) => r.json()).then((data) => {
-        setArtefact(data)
-        setEditTitle(data.title ?? '')
-        setEditContent(data.content ?? '')
-        setEditTags((data.metadata?.tags ?? []).join(', '))
-        setEditSummary(data.metadata?.summary ?? '')
-      }).catch(() => {}),
-      fetch('/api/publish/channels').then((r) => r.json()).then(setChannels).catch(() => {}),
-      fetch(`/api/publish?artefact_id=${params.id}`).then((r) => r.json()).then(setPublishLogs).catch(() => {}),
+    const [artefactRes, channelsRes, logsRes] = await Promise.all([
+      fetchJson<Artefact>(`/api/artefacts/${params.id}`, isArtefact),
+      fetchList<PublishChannel>('/api/publish/channels'),
+      fetchList<PublishLog>(`/api/publish?artefact_id=${params.id}`),
     ])
+    const data = artefactRes.data
+    setArtefact(data)
+    if (data) {
+      setEditTitle(data.title ?? '')
+      setEditContent(data.content ?? '')
+      setEditTags((data.metadata?.tags ?? []).join(', '))
+      setEditSummary(data.metadata?.summary ?? '')
+    }
+    setChannels(channelsRes.items)
+    setPublishLogs(logsRes.items)
+    const errors = [artefactRes, channelsRes, logsRes].map((r) => r.error).filter((e): e is string => Boolean(e))
+    setLoadError(Array.from(new Set(errors)).join(' · '))
     setLoading(false)
   }
 
@@ -159,7 +174,7 @@ export default function DocumentDetailPage(props: { params: Promise<{ id: string
   }
 
   function reloadLogs() {
-    fetch(`/api/publish?artefact_id=${params.id}`).then((r) => r.json()).then(setPublishLogs).catch(() => {})
+    fetchList<PublishLog>(`/api/publish?artefact_id=${params.id}`).then(({ items }) => setPublishLogs(items))
   }
 
   if (loading) {
@@ -174,6 +189,7 @@ export default function DocumentDetailPage(props: { params: Promise<{ id: string
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-[rgb(var(--muted-foreground))]">Document not found</p>
+        {loadError && <p className="text-xs text-red-600 dark:text-red-400 max-w-md text-center">{loadError}</p>}
         <Link href="/documents" className="text-sm text-[rgb(var(--primary))] hover:underline">
           Back to Documents
         </Link>
@@ -242,6 +258,11 @@ export default function DocumentDetailPage(props: { params: Promise<{ id: string
       </div>
 
       <main className="flex-1 p-6 max-w-5xl mx-auto w-full">
+        {loadError && (
+          <div className="mb-6 flex items-start gap-2 text-xs rounded-lg border border-red-300 bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-200 dark:border-red-700 p-3">
+            <AlertCircle size={14} className="mt-0.5 shrink-0" /> Failed to load: {loadError}
+          </div>
+        )}
         <div className="flex gap-6">
           {/* Main content area */}
           <div className="flex-1 min-w-0">
