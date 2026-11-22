@@ -11,12 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.118.0",
+    "@supabase/supabase-js": "^2.119.2",
     "@types/markdown-it": "^14.2.0",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.66.0",
+    "lucide-react": "^1.76.0",
     "markdown-it": "^14.3.3",
-    "next": "^15.5.28",
+    "next": "^15.5.29",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^9.1.0",
@@ -29,17 +29,17 @@
     "@types/node": "^20.19.43",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "autoprefixer": "^10.6.2",
+    "autoprefixer": "^10.7.0",
     "eslint": "^8.57.1",
-    "eslint-config-next": "^15.5.28",
-    "postcss": "^8.5.32",
+    "eslint-config-next": "^15.5.29",
+    "postcss": "^8.5.33",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.1"
   },
   "pnpm": {
     "overrides": {
-      "postcss": "^8.5.32",
+      "postcss": "^8.5.33",
       "postcss-selector-parser": "^6.1.5"
     }
   }
